@@ -67,7 +67,7 @@ public class SplitScan {
             ImageReader reader = ImageIO.getImageReadersByFormatName( "TIFF" ).next();
             reader.setInput( istrm );
             ImageReadParam param = reader.getDefaultReadParam();
-            param.setSourceRegion( new Rectangle(0, 0, 1024, reader.getHeight(0 ) ) );
+            // param.setSourceRegion( new Rectangle(0, 0, 1024, reader.getHeight(0 ) ) );
             BufferedImage inImg = reader.read( 0, param );            
             return inImg;
         } catch ( FileNotFoundException ex ) {
@@ -134,12 +134,17 @@ public class SplitScan {
 
         int perfPixelCount = 0;
         int x=0, y=0;
+        int perfStartY = -1;
+        int perfEndY = -1;
+        boolean isPerforation = false;
+        int linesToDecide = -1;
         System.err.println( "Finding perforations..." );
         while ( !iter.nextLineDone() ) {
+            int pixelsInLine = 0;
             if ( y % 1024 == 0 ) {
                 System.out.println( "" + y + " lines analyzed" );
             }
-            pixelsInLine[y] = 0;
+            // pixelsInLine[y] = 0;
             perfBorderX[y] = 0;
             x = 0;
             iter.startPixels();
@@ -147,10 +152,10 @@ public class SplitScan {
                 iter.getPixel( pixel );
                 if ( pixel[0] > 0 ) {
                     perfPixelCount++;
-                    pixelsInLine[y]++;
-                } else if ( pixelsInLine[y] > PERF_HOLE_THRESHOLD ) {
+                    pixelsInLine++;
+                } else if ( pixelsInLine > PERF_HOLE_THRESHOLD ) {
                     /*
-                     There are enough white pixels in this line that we 
+                     There are enough white pixels in this line that 
                      this looks like a perforation. Store the right border &
                      continue
                      */
@@ -159,31 +164,16 @@ public class SplitScan {
                 }
                 x++;
             }
-            log.log(Level.FINE, "Line " + y + ", " + pixelsInLine[y] + "pixels" );
-            y++;
-        }
-        
-        /**
-         Find the performations in Y direction.          
-         */
-        
-        
-        int perfStartY = -1;
-        int perfEndY = -1;
-        boolean isPerforation = false;
-        int linesToDecide = -1;
-        for ( int row = 0; row < pixelsInLine.length ; row++ ) {
-            if ( row % 1000 == 0 ) {
-                System.out.println( "" + row + " rows analyzed" );
-            }
+            
+            // Analyze this line
             if ( isPerforation ) {
-                if ( pixelsInLine[row] < PERF_HOLE_THRESHOLD ) {
+                if ( pixelsInLine < PERF_HOLE_THRESHOLD ) {
                     // The perforation ends here
                     if ( linesToDecide < 0 ) {
                         // This is a new candidate for ending the performation hole.
                         // Check MIN_LINES next lines to be sure
                         linesToDecide = MIN_LINES;
-                        perfEndY = row;
+                        perfEndY = y;
                     } else if ( linesToDecide > 0 ) {
                         linesToDecide--;
                     } else {
@@ -200,9 +190,9 @@ public class SplitScan {
                 }
             } else {
                 // Not in a perforation
-                if ( pixelsInLine[row] > PERF_HOLE_THRESHOLD ) {
+                if ( pixelsInLine > PERF_HOLE_THRESHOLD ) {
                     if ( linesToDecide < 0 ) {
-                        perfStartY = row;
+                        perfStartY = y;
                         linesToDecide = MIN_LINES;
                     } else if ( linesToDecide > 0 ) {
                         linesToDecide--;
@@ -214,7 +204,9 @@ public class SplitScan {
                     linesToDecide = -1;
                 }
             }
+            y++;
         }
+        
         System.out.println( "Perforations:" );
         for ( Integer row : perfY ) {
             System.out.println( row );
