@@ -15,6 +15,7 @@ import java.awt.Dimension;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
@@ -24,6 +25,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EventListener;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
@@ -34,16 +36,21 @@ import javax.imageio.ImageReadParam;
 import javax.imageio.ImageReader;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
+import javax.imageio.event.IIOReadProgressListener;
 import javax.imageio.stream.FileImageInputStream;
 import javax.imageio.stream.ImageInputStream;
 import javax.imageio.stream.ImageOutputStream;
+import javax.media.jai.ImageLayout;
 import javax.media.jai.Interpolation;
 import javax.media.jai.JAI;
+import javax.media.jai.PlanarImage;
 import javax.media.jai.RenderedOp;
 import javax.media.jai.TiledImage;
 import javax.media.jai.iterator.RectIter;
 import javax.media.jai.iterator.RectIterFactory;
 import javax.media.jai.operator.AffineDescriptor;
+import javax.media.jai.operator.BandCombineDescriptor;
+import javax.media.jai.operator.BandCombineDescriptor;
 import javax.media.jai.operator.BandSelectDescriptor;
 import javax.media.jai.operator.BinarizeDescriptor;
 import javax.media.jai.operator.CropDescriptor;
@@ -60,19 +67,70 @@ public class SplitScan {
 
     static Logger log = Logger.getLogger( SplitScan.class.getName() );
     
+    static class ReadListener implements IIOReadProgressListener {
+        int reads = 0;
+        public void sequenceStarted( ImageReader source, int minIndex ) {
+            System.err.println( "sequenceStarter " + minIndex );
+        }
+
+        public void sequenceComplete( ImageReader source ) {
+            System.err.println( "sequenceComplete"  );
+        }
+
+        public void imageStarted( ImageReader source, int imageIndex ) {
+            System.err.println( "imageStarted " + imageIndex );
+        }
+
+        public void imageProgress( ImageReader source, float percentageDone ) {
+            System.err.println( "progress " + percentageDone );
+        }
+
+        public void imageComplete( ImageReader source ) {
+            reads++;
+            System.err.println( "imageComplete " + reads );
+        }
+
+        public void thumbnailStarted( ImageReader source, int imageIndex, int thumbnailIndex ) {
+            System.err.println( "thumb started" + imageIndex );
+        }
+
+        public void thumbnailProgress( ImageReader source, float percentageDone ) {
+            System.err.println( "thumb progress " + percentageDone );
+        }
+
+        public void thumbnailComplete( ImageReader source ) {
+            System.err.println( "thumb compelte"  );
+        }
+
+        public void readAborted( ImageReader source ) {
+            System.err.println( "read aborted" );
+        }
+        
+    }
+    
+    ImageReader reader;
+    
     private RenderedImage readImage( String fname ) {
         try {
 //        PlanarImage img = JAI.create( "fileload", fname );
             ImageInputStream istrm = new FileImageInputStream( new File( fname ) );
-            ImageReader reader = ImageIO.getImageReadersByFormatName( "TIFF" ).next();
+            reader = ImageIO.getImageReadersByFormatName( "TIFF" ).next();
             reader.setInput( istrm );
             ImageReadParam param = reader.getDefaultReadParam();
             // param.setSourceRegion( new Rectangle(0, 0, 1024, reader.getHeight(0 ) ) );
-            BufferedImage inImg = reader.read( 0, param );            
-            return inImg;
+            ImageLayout layout = new ImageLayout();
+            layout.setTileHeight(512);
+            layout.setTileWidth(1024);
+            RenderingHints hints = new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout);
+            RenderedOp img = ImageReadDescriptor.create(istrm, 0, false, false, false, 
+                    null, null, param, reader, hints );
+            // BufferedImage inImg = reader.read( 0, param );            
+            return img;
         } catch ( FileNotFoundException ex ) {
+            System.out.println( ex.getMessage() );
             Logger.getLogger( SplitScan.class.getName() ).log( Level.SEVERE, null, ex );
         } catch ( IOException ex ) {
+            System.out.println( ex.getMessage() );
             Logger.getLogger( SplitScan.class.getName() ).log( Level.SEVERE, null, ex );
         }
         return null;
@@ -84,8 +142,8 @@ public class SplitScan {
     }
     
     private RenderedImage getRotatedImage( RenderedImage img ) {
-        TiledImage ti = new TiledImage( img, 64, 64 );
-        return TransposeDescriptor.create(ti, TransposeDescriptor.ROTATE_90, null);
+        // TiledImage ti = new TiledImage( img, 64, 64 );
+        return TransposeDescriptor.create(img, TransposeDescriptor.ROTATE_90, null);
     }
     
     private void writeTiled( File in ) {
@@ -184,6 +242,9 @@ public class SplitScan {
                         perfX.add( getFrameLeft(perfStartY, perfEndY));
                         isPerforation = false;
                         linesToDecide = -1;
+//                        if ( perfY.size() > 1 ) {
+//                            saveFrame( perfY.size()-1 );
+//                        }
                     }
                 } else {
                     linesToDecide = -1;
@@ -249,7 +310,86 @@ public class SplitScan {
          return xform;
     }
     
+    String fnameTmpl = "frame_%05d.tif";
+    RenderedImage scanImage = null;
+    
+    private void saveFrame( int n ) throws IOException {        
+        String fname = String.format( fnameTmpl, (Integer) n );
+        System.err.println( "Saving frame " + fname );
+        int startY = (perfY.get( n - 1 ) + perfY.get( n )) >> 1;
+        int startX = perfX.get( n - 1 );
+        System.out.println( "" + startX + "\t" + startY );
+        int w = Math.min( frameWidth, scanImage.getWidth() - startX );
+        AffineTransform xform = getFrameXform( n );
+        RenderedOp rotated = AffineDescriptor.create( scanImage, xform, Interpolation.getInstance( Interpolation.INTERP_BICUBIC ), null, null );
+        int minx = rotated.getMinX();
+        int miny = rotated.getMinY();
+        int rw = rotated.getWidth();
+        int rh = rotated.getHeight();
+        RenderedOp frame = CropDescriptor.create( rotated, (float) 0, (float) 0, (float) w, (float) frameHeight, null );
+
+//        double[][] cm = {
+//            {0.0, 0.0, 0.0, 0.0},
+//            {2.353675, -0.8596982, -0.3466206, 0.0},
+//            {-0.7270595, 1.593924, 0.08920667, 0.0},
+//            {-0.05648472, 0.1896461, 0.7934276, 0.0},
+//            {0.0, 0.0, 0.0, 0.0}
+//        };
+//        frame = BandCombineDescriptor.create(frame, cm, null );
+        // Find a writer for that file extensions
+        ImageWriter writer = null;
+        Iterator iter = ImageIO.getImageWritersByFormatName( "TIFF" );
+        if ( iter.hasNext() ) {
+            writer = (ImageWriter) iter.next();
+        }
+        if ( writer != null ) {
+            ImageOutputStream ios = null;
+            try {
+                // Prepare output file
+                ios = ImageIO.createImageOutputStream( new File( fname ) );
+                writer.setOutput( ios );
+                // Set some parameters
+                ImageWriteParam param = writer.getDefaultWriteParam();
+                writer.write( null, new IIOImage( frame, null, null ), param );
+
+                // Cleanup
+                ios.flush();
+
+            } catch ( IOException ex ) {
+                Logger.getLogger( SplitScan.class.getName() ).log( Level.SEVERE, null, ex );
+            } finally {
+                if ( ios != null ) {
+                    try {
+                        ios.close();
+                    } catch ( IOException e ) {
+                        System.err.println( "Error closing output stream" );
+                    }
+                }
+                writer.dispose();
+            }
+        }
+        if ( debug ) {
+            String debugFname = String.format( "debug_%05d.png", (Integer) n );
+            BufferedImage debugLayer = new BufferedImage( frame.getWidth(), frame.getHeight(), BufferedImage.TYPE_INT_RGB );
+            for ( int row = 0; row < frame.getHeight(); row++ ) {
+                debugLayer.getRaster().setPixel( perfBorderX[startY + row], row, new int[]{255, 255, 255} );
+            }
+            try {
+                ImageIO.write( debugLayer, "PNG", new File( debugFname ) );
+            } catch ( IOException ex ) {
+                Logger.getLogger( SplitScan.class.getName() ).log( Level.SEVERE, null, ex );
+            }
+        }
+        frame.dispose();
+        rotated.dispose();
+        System.gc();
+        System.gc();
+
+    }
+    
     private void saveFrames( RenderedImage scanImage, String fnameTmpl ) {
+        RenderedOp frame = null;
+        RenderedOp rotated = null;
         for ( int n = 1; n < perfY.size() - 1; n++ ) {
             String fname = String.format( fnameTmpl, (Integer) n );
             System.err.println( "Saving frame " + fname );
@@ -258,13 +398,19 @@ public class SplitScan {
             System.out.println( "" + startX + "\t" + startY );
             int w = Math.min( frameWidth, scanImage.getWidth() - startX );
             AffineTransform xform = getFrameXform( n );
-            RenderedOp rotated = AffineDescriptor.create( scanImage, xform, Interpolation.getInstance( Interpolation.INTERP_BICUBIC ), null, null );
-            int minx = rotated.getMinX();
-            int miny = rotated.getMinY();
-            int rw = rotated.getWidth();
-            int rh = rotated.getHeight();
-            RenderedOp frame = CropDescriptor.create( rotated, (float) 0, (float) 0, (float) w, (float) frameHeight, null );
-
+            if ( frame == null ) {
+                rotated = AffineDescriptor.create( scanImage, xform, Interpolation.getInstance( Interpolation.INTERP_BICUBIC ), null, null );
+                frame = CropDescriptor.create( rotated, (float) 0, (float) 0, (float) w, (float) frameHeight, null );
+//                double[][] cm = {
+//                        {2.353675, -0.8596982, -0.3466206, 0.0, 0.0},
+//                        {-0.7270595, 1.593924, 0.08920667, 0.0, 0.0},
+//                        {-0.05648472, 0.1896461, 0.7934276, 0.0, 0.0},
+//                        {0.0, 0.0, 0.0, 1.0, 0.0}
+//                };
+//                frame = BandCombineDescriptor.create( frame, cm, null );
+            } else {
+                rotated.setParameter( xform, 0 );
+            }
             // Find a writer for that file extensions
             ImageWriter writer = null;
             Iterator iter = ImageIO.getImageWritersByFormatName( "TIFF" );
@@ -279,10 +425,12 @@ public class SplitScan {
                     writer.setOutput( ios );
                     // Set some parameters
                     ImageWriteParam param = writer.getDefaultWriteParam();
-                    writer.write( null, new IIOImage( frame, null, null ), param );
+                    PlanarImage rendering = frame.getNewRendering();
+                    writer.write( null, new IIOImage( rendering, null, null ), param );
 
                     // Cleanup
                     ios.flush();
+                    rendering.dispose();
 
                 } catch ( IOException ex ) {
                     Logger.getLogger( SplitScan.class.getName() ).log( Level.SEVERE, null, ex );
@@ -350,20 +498,24 @@ public class SplitScan {
         SplitScan t = new SplitScan(  );
         System.out.println( "Reading image "  + args[0] );
         RenderedImage img = t.readImage( args[0] );
+        System.out.println( "using " + args[1] + " as mask");
+        RenderedImage maskImg = t.readImage( args[1] );
         System.out.println( "done, width " + img.getWidth() + " height " + img.getHeight() );
+        System.out.println( "done, width " + maskImg.getWidth() + " height " + maskImg.getHeight() );
         System.out.println( "Creating perforation mask" );
-        RenderedImage binaryImg = t.findPerforationEdges( img );
+        RenderedImage binaryImg = t.findPerforationEdges( maskImg );
         if ( img.getWidth() > img.getHeight() ) {
             System.out.println( "Rotating image by 90 degrees" );
             img = t.getRotatedImage(img);
             binaryImg = t.getRotatedImage( binaryImg );
         }
+        t.scanImage = img;
         t.findPerfHolePoints( binaryImg );
-        String fnameTmpl = "frame_%05d.tif";
+        t.fnameTmpl = "frame_%05d.tif";
         if ( args.length > 1 ) {
-            fnameTmpl = args[1];
+            t.fnameTmpl = args[2];
         }
-        t.saveFrames( img, fnameTmpl );
+        t.saveFrames( img, t.fnameTmpl );
     }
 
 }
