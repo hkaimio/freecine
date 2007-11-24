@@ -10,6 +10,7 @@
 package fi.kaimio.moviescan;
 
 import com.sun.media.jai.operator.ImageReadDescriptor;
+import com.sun.media.jai.opimage.AffineCRIF;
 import com.sun.media.jai.util.SunTileCache;
 import java.awt.Dimension;
 import java.awt.Dimension;
@@ -24,8 +25,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.EventListener;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
@@ -50,11 +51,11 @@ import javax.media.jai.iterator.RectIter;
 import javax.media.jai.iterator.RectIterFactory;
 import javax.media.jai.operator.AffineDescriptor;
 import javax.media.jai.operator.BandCombineDescriptor;
-import javax.media.jai.operator.BandCombineDescriptor;
 import javax.media.jai.operator.BandSelectDescriptor;
 import javax.media.jai.operator.BinarizeDescriptor;
 import javax.media.jai.operator.CropDescriptor;
-import javax.media.jai.operator.FileStoreDescriptor;
+import javax.media.jai.operator.MaxFilterDescriptor;
+import javax.media.jai.operator.MinDescriptor;
 import javax.media.jai.operator.TransposeDescriptor;
 import javax.media.jai.operator.TransposeDescriptor;
 
@@ -109,6 +110,12 @@ public class SplitScan {
     }
     
     ImageReader reader;
+
+    private int median( int[] arr ) {
+        int[] copy = Arrays.copyOf(arr, arr.length );
+        Arrays.sort(arr);
+        return arr[arr.length >> 1];
+    }
     
     private RenderedImage readImage( String fname ) {
         try {
@@ -120,7 +127,7 @@ public class SplitScan {
             // param.setSourceRegion( new Rectangle(0, 0, 1024, reader.getHeight(0 ) ) );
             ImageLayout layout = new ImageLayout();
             layout.setTileHeight(512);
-            layout.setTileWidth(1024);
+            layout.setTileWidth(4096);
             RenderingHints hints = new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout);
             RenderedOp img = ImageReadDescriptor.create(istrm, 0, false, false, false, 
                     null, null, param, reader, hints );
@@ -136,9 +143,32 @@ public class SplitScan {
         return null;
     }
     
+    private void saveDebugImage( RenderedImage src, String desc, int x, int y,
+            int w, int h ) {
+        AffineTransform xform = AffineTransform.getTranslateInstance( 0, -y );
+        RenderedOp perfTrans = AffineDescriptor.create( maskImage, xform, null, null, null );
+        RenderedOp perfImage = CropDescriptor.create( perfTrans, 0.0f, 0.0f, (float)w, (float)h, null );
+        
+        // Find out the file name
+        String fname = String.format( "debug_%s_%05d.tif", desc, y );
+        try {
+            ImageIO.write( perfImage, "TIFF", new File( fname ) );
+        } catch ( IOException e ) {
+            System.err.println( "Error saving hole: " + e.getMessage() );
+        }
+    }
+    
+    RenderedImage maskImage;
+    
     private RenderedImage findPerforationEdges( RenderedImage img ) {
+        maskImage = img;
+        RenderedOp redBand = BandSelectDescriptor.create( img, new int[] {0}, null );
+        RenderedOp greenBand = BandSelectDescriptor.create( img, new int[] {1}, null );
         RenderedOp blueBand = BandSelectDescriptor.create( img, new int[] {2}, null );
-        return BinarizeDescriptor.create(blueBand, (Double) 50000.0, null );
+        RenderedOp minrg = MinDescriptor.create(redBand, greenBand, null );
+        RenderedOp min = MinDescriptor.create(minrg, blueBand, null );
+        RenderedOp maxf = MaxFilterDescriptor.create( min, MaxFilterDescriptor.MAX_MASK_SQUARE, 10, null );
+        return BinarizeDescriptor.create(maxf, (Double) 60000.0, null );
     }
     
     private RenderedImage getRotatedImage( RenderedImage img ) {
@@ -176,33 +206,33 @@ public class SplitScan {
     List<Integer> perfX = new ArrayList<Integer>(  );
     static final int PERF_HOLE_THRESHOLD = 50;
     static final int MIN_LINES = 20;
+    static final int MEDIAN_WINDOW = 100;
 
+    
 
     private void findPerfHolePoints( RenderedImage img ) {
-        pixelsInLine = new int[ img.getHeight()];
         perfBorderX = new int[ img.getHeight()];
         /**
          The perforations should be in the 1/3 of the leftmost image.
          */
-        Rectangle perfArea = new Rectangle(0, 0, img.getWidth()/3, img.getHeight() );
+        Rectangle perfArea = new Rectangle(0, 0, img.getWidth()/4, img.getHeight() );
         RectIter iter = RectIterFactory.create(img, perfArea );
         SampleModel sm = img.getSampleModel(  );
         int nbands = sm.getNumBands(  );
         int[] pixel = new int[nbands];
 
         int perfPixelCount = 0;
-        int x=0, y=0;
+        int x=0, y=-1;
         int perfStartY = -1;
         int perfEndY = -1;
         boolean isPerforation = false;
         int linesToDecide = -1;
-        System.err.println( "Finding perforations..." );
+        int[] lastLines = new int[MEDIAN_WINDOW];
+        int n = 0;
+        System.out.println( "Finding perforations..." );
         while ( !iter.nextLineDone() ) {
+            y++;
             int pixelsInLine = 0;
-            if ( y % 1024 == 0 ) {
-                System.out.println( "" + y + " lines analyzed" );
-            }
-            // pixelsInLine[y] = 0;
             perfBorderX[y] = 0;
             x = 0;
             iter.startPixels();
@@ -223,54 +253,49 @@ public class SplitScan {
                 x++;
             }
             
+            // System.err.println( String.format( "%d, %d", y, pixelsInLine ) );
+            
+            lastLines[n] = pixelsInLine;
+            n++;
+            if ( n >= MEDIAN_WINDOW ) {
+                n = 0;
+            }
+            int medianPixels = median( lastLines );
+            
+            if ( y < MEDIAN_WINDOW ) {
+                // The ring buffer is not yet full
+                continue;
+            }
+            
             // Analyze this line
             if ( isPerforation ) {
-                if ( pixelsInLine < PERF_HOLE_THRESHOLD ) {
+                if ( medianPixels < PERF_HOLE_THRESHOLD ) {
                     // The perforation ends here
-                    if ( linesToDecide < 0 ) {
-                        // This is a new candidate for ending the performation hole.
-                        // Check MIN_LINES next lines to be sure
-                        linesToDecide = MIN_LINES;
-                        perfEndY = y;
-                    } else if ( linesToDecide > 0 ) {
-                        linesToDecide--;
-                    } else {
-                        // So many black lines in a row that we can be pretty sure
-                        int perfCenterY = (perfEndY+perfStartY) >> 1;
-                        System.err.println( "Found perforation at " + perfCenterY );
+
+                    perfEndY = y - (MEDIAN_WINDOW >> 1);
+                    // So many black lines in a row that we can be pretty sure
+                    int perfCenterY = (perfEndY + perfStartY) >> 1;
+                    int perfCenterX = getFrameLeft( perfStartY, perfEndY );
+                    if ( perfCenterX > 0 ) {
+                        System.out.println( String.format( "Found perforation at (%d, %d)", perfCenterX, perfCenterY ) );
                         perfY.add( perfCenterY );
-                        perfX.add( getFrameLeft(perfStartY, perfEndY));
-                        isPerforation = false;
-                        linesToDecide = -1;
-//                        if ( perfY.size() > 1 ) {
-//                            saveFrame( perfY.size()-1 );
-//                        }
+                        perfX.add( perfCenterX );
+                        // Save image of the perforation
+                        int imageY = perfCenterY-200;
+                        imageY = Math.max( 0, imageY );
+                        saveDebugImage( maskImage, "hole", 
+                                0, imageY, 
+                                300, Math.min( 400, maskImage.getHeight()-imageY ) );
                     }
-                } else {
-                    linesToDecide = -1;
+                    isPerforation = false;
                 }
             } else {
                 // Not in a perforation
-                if ( pixelsInLine > PERF_HOLE_THRESHOLD ) {
-                    if ( linesToDecide < 0 ) {
-                        perfStartY = y;
-                        linesToDecide = MIN_LINES;
-                    } else if ( linesToDecide > 0 ) {
-                        linesToDecide--;
-                    } else {
-                        isPerforation = true;
-                        linesToDecide = -1;
-                    }
-                } else {
-                    linesToDecide = -1;
+                if ( medianPixels > PERF_HOLE_THRESHOLD ) {
+                    perfStartY = y - (MEDIAN_WINDOW >> 1);
+                    isPerforation = true;
                 }
             }
-            y++;
-        }
-        
-        System.out.println( "Perforations:" );
-        for ( Integer row : perfY ) {
-            System.out.println( row );
         }
     }
     
@@ -281,21 +306,23 @@ public class SplitScan {
 
     private int getFrameLeft( int starty, int endy ) {
         ArrayList<Integer> perfBorderPoints = new ArrayList<Integer>(400);
+        System.err.println( String.format( "getFrameLeft %d -> %d", starty, endy ));
         for ( int n = starty; n < endy; n++ ) {
             if ( perfBorderX[n] > 0 ) {
                 perfBorderPoints.add( perfBorderX[n] );
             }
         }
         Collections.sort( perfBorderPoints );
-        return perfBorderPoints.get( perfBorderPoints.size() >> 1 );
+        return perfBorderPoints.size() > 0 ? 
+            perfBorderPoints.get( perfBorderPoints.size() >> 1 ) : 0;
     }
     
     AffineTransform getFrameXform( int frame ) {
         /**
          Estimate film rotation from max 5 perforations
          */ 
-         int f1 = Math.max( 0, frame-2 );
-         int f2 = Math.min( perfY.size(), frame+2 );
+         int f1 = Math.max( 0, frame-1 );
+         int f2 = Math.min( perfY.size()-1, frame+1 );
          int x1 = perfX.get( f1 );
          int x2 = perfX.get( f2 );
          int y1 = perfY.get( f1 );
@@ -315,10 +342,11 @@ public class SplitScan {
     
     private void saveFrame( int n ) throws IOException {        
         String fname = String.format( fnameTmpl, (Integer) n );
-        System.err.println( "Saving frame " + fname );
+        
         int startY = (perfY.get( n - 1 ) + perfY.get( n )) >> 1;
         int startX = perfX.get( n - 1 );
-        System.out.println( "" + startX + "\t" + startY );
+        System.out.println( "Saving frame " + fname + 
+                ", perforation at ("+ startX + ", " + startY + ")" );
         int w = Math.min( frameWidth, scanImage.getWidth() - startX );
         AffineTransform xform = getFrameXform( n );
         RenderedOp rotated = AffineDescriptor.create( scanImage, xform, Interpolation.getInstance( Interpolation.INTERP_BICUBIC ), null, null );
@@ -390,9 +418,9 @@ public class SplitScan {
     private void saveFrames( RenderedImage scanImage, String fnameTmpl ) {
         RenderedOp frame = null;
         RenderedOp rotated = null;
-        for ( int n = 1; n < perfY.size() - 1; n++ ) {
+        for ( int n = 1; n < perfY.size() - 2; n++ ) {
             String fname = String.format( fnameTmpl, (Integer) n );
-            System.err.println( "Saving frame " + fname );
+            System.out.println( "Saving frame " + fname );
             int startY = (perfY.get( n - 1 ) + perfY.get( n )) >> 1;
             int startX = perfX.get( n - 1 );
             System.out.println( "" + startX + "\t" + startY );
@@ -494,8 +522,9 @@ public class SplitScan {
     public static void main( String[] args ) {
         log.setLevel( Level.FINE );
         JAI.setDefaultTileSize(new Dimension( 64, 64 ) );
-        JAI.getDefaultInstance().setTileCache( new SunTileCache( 50*1024*1024 ) );
+        JAI.getDefaultInstance().setTileCache( new SunTileCache( 100*1024*1024 ) );
         SplitScan t = new SplitScan(  );
+        long startTime = System.currentTimeMillis();
         System.out.println( "Reading image "  + args[0] );
         RenderedImage img = t.readImage( args[0] );
         System.out.println( "using " + args[1] + " as mask");
@@ -503,19 +532,23 @@ public class SplitScan {
         System.out.println( "done, width " + img.getWidth() + " height " + img.getHeight() );
         System.out.println( "done, width " + maskImg.getWidth() + " height " + maskImg.getHeight() );
         System.out.println( "Creating perforation mask" );
-        RenderedImage binaryImg = t.findPerforationEdges( maskImg );
         if ( img.getWidth() > img.getHeight() ) {
             System.out.println( "Rotating image by 90 degrees" );
             img = t.getRotatedImage(img);
-            binaryImg = t.getRotatedImage( binaryImg );
+            maskImg = t.getRotatedImage( maskImg );
         }
+        RenderedImage binaryImg = t.findPerforationEdges( maskImg );
         t.scanImage = img;
         t.findPerfHolePoints( binaryImg );
+        long analysisTime = System.currentTimeMillis() - startTime;
+        System.out.println( "Image analyzed in " + ((double)analysisTime)/1000.0);
         t.fnameTmpl = "frame_%05d.tif";
         if ( args.length > 1 ) {
             t.fnameTmpl = args[2];
         }
         t.saveFrames( img, t.fnameTmpl );
+        long saveTime = System.currentTimeMillis() - analysisTime - startTime;
+        System.out.println( "Images saved in " + ((double)saveTime)/1000.0);
     }
 
 }
