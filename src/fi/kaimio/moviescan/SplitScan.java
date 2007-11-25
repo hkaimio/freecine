@@ -113,8 +113,8 @@ public class SplitScan {
 
     private int median( int[] arr ) {
         int[] copy = Arrays.copyOf(arr, arr.length );
-        Arrays.sort(arr);
-        return arr[arr.length >> 1];
+        Arrays.sort(copy);
+        return copy[copy.length >> 1];
     }
     
     private RenderedImage readImage( String fname ) {
@@ -150,9 +150,9 @@ public class SplitScan {
         RenderedOp perfImage = CropDescriptor.create( perfTrans, 0.0f, 0.0f, (float)w, (float)h, null );
         
         // Find out the file name
-        String fname = String.format( "debug_%s_%05d.tif", desc, y );
+        File f = getDebugImageFile( String.format( "%s_%05d", desc, y ) );
         try {
-            ImageIO.write( perfImage, "TIFF", new File( fname ) );
+            ImageIO.write( perfImage, "TIFF", f );
         } catch ( IOException e ) {
             System.err.println( "Error saving hole: " + e.getMessage() );
         }
@@ -220,8 +220,6 @@ public class SplitScan {
         SampleModel sm = img.getSampleModel(  );
         int nbands = sm.getNumBands(  );
         int[] pixel = new int[nbands];
-
-        int perfPixelCount = 0;
         int x=0, y=-1;
         int perfStartY = -1;
         int perfEndY = -1;
@@ -239,7 +237,6 @@ public class SplitScan {
             while( !iter.nextPixelDone()  ) {
                 iter.getPixel( pixel );
                 if ( pixel[0] > 0 ) {
-                    perfPixelCount++;
                     pixelsInLine++;
                 } else if ( pixelsInLine > PERF_HOLE_THRESHOLD ) {
                     /*
@@ -253,23 +250,24 @@ public class SplitScan {
                 x++;
             }
             
-            // System.err.println( String.format( "%d, %d", y, pixelsInLine ) );
             
+            // Calculate median of white pixels in recent lines
             lastLines[n] = pixelsInLine;
             n++;
             if ( n >= MEDIAN_WINDOW ) {
                 n = 0;
             }
             int medianPixels = median( lastLines );
-            
+
             if ( y < MEDIAN_WINDOW ) {
                 // The ring buffer is not yet full
                 continue;
             }
+
             
             // Analyze this line
             if ( isPerforation ) {
-                if ( medianPixels < PERF_HOLE_THRESHOLD ) {
+                if ( medianPixels <= PERF_HOLE_THRESHOLD ) {
                     // The perforation ends here
 
                     perfEndY = y - (MEDIAN_WINDOW >> 1);
@@ -277,7 +275,16 @@ public class SplitScan {
                     int perfCenterY = (perfEndY + perfStartY) >> 1;
                     int perfCenterX = getFrameLeft( perfStartY, perfEndY );
                     if ( perfCenterX > 0 ) {
-                        System.out.println( String.format( "Found perforation at (%d, %d)", perfCenterX, perfCenterY ) );
+                        int prevX = 0;
+                        int prevY = 0;
+                        if ( perfX.size() >= 1 ) {
+                            prevX = perfX.get( perfX.size() -1 );
+                            prevY = perfY.get( perfY.size() -1 );
+                        }
+                        System.out.println( 
+                                String.format( "Found perforation at (%d, %d) %+d, %+d", 
+                                perfCenterX, perfCenterY,
+                                perfCenterX-prevX, perfCenterY-prevY ) );
                         perfY.add( perfCenterY );
                         perfX.add( perfCenterX );
                         // Save image of the perforation
@@ -306,7 +313,6 @@ public class SplitScan {
 
     private int getFrameLeft( int starty, int endy ) {
         ArrayList<Integer> perfBorderPoints = new ArrayList<Integer>(400);
-        System.err.println( String.format( "getFrameLeft %d -> %d", starty, endy ));
         for ( int n = starty; n < endy; n++ ) {
             if ( perfBorderX[n] > 0 ) {
                 perfBorderPoints.add( perfBorderX[n] );
@@ -321,12 +327,12 @@ public class SplitScan {
         /**
          Estimate film rotation from max 5 perforations
          */ 
-         int f1 = Math.max( 0, frame-1 );
-         int f2 = Math.min( perfY.size()-1, frame+1 );
-         int x1 = perfX.get( f1 );
-         int x2 = perfX.get( f2 );
-         int y1 = perfY.get( f1 );
-         int y2 = perfY.get( f2 );
+         int f1 = frame-1;
+         int f2 = frame+1;
+         int x1 = (f1 >= 0) ? perfX.get( f1 ) : perfX.get(0);
+         int x2 = (f2 < perfX.size() ) ? perfX.get( f2 ) : perfX.get( perfX.size()-1 );
+         int y1 = (f1 >= 0) ?  perfY.get( f1 ) : perfX.get(0);
+         int y2 = (f2 < perfX.size() ) ?  perfY.get( f2 ) : perfY.get( perfY.size()-1 );
          double rot = Math.atan2((double)x2-x1, (double)(y2-y1) );
          // Translate the center of perforation to origin
          AffineTransform xform = AffineTransform.getTranslateInstance( -perfX.get(frame), -perfY.get(frame) );
@@ -340,7 +346,7 @@ public class SplitScan {
     String fnameTmpl = "frame_%05d.tif";
     RenderedImage scanImage = null;
     
-    private void saveFrame( int n ) throws IOException {        
+    private void saveFrame( int n ) throws IOException {            
         String fname = String.format( fnameTmpl, (Integer) n );
         
         int startY = (perfY.get( n - 1 ) + perfY.get( n )) >> 1;
@@ -418,77 +424,67 @@ public class SplitScan {
     private void saveFrames( RenderedImage scanImage, String fnameTmpl ) {
         RenderedOp frame = null;
         RenderedOp rotated = null;
-        for ( int n = 1; n < perfY.size() - 2; n++ ) {
-            String fname = String.format( fnameTmpl, (Integer) n );
+        int frameNum = 1;
+        for ( int n = 0; n < perfY.size(); n++ ) {
+            String fname = String.format( fnameTmpl, (Integer) frameNum );
             System.out.println( "Saving frame " + fname );
-            int startY = (perfY.get( n - 1 ) + perfY.get( n )) >> 1;
-            int startX = perfX.get( n - 1 );
-            System.out.println( "" + startX + "\t" + startY );
+            int startX = perfX.get( n );
             int w = Math.min( frameWidth, scanImage.getWidth() - startX );
             AffineTransform xform = getFrameXform( n );
-            if ( frame == null ) {
-                rotated = AffineDescriptor.create( scanImage, xform, Interpolation.getInstance( Interpolation.INTERP_BICUBIC ), null, null );
-                frame = CropDescriptor.create( rotated, (float) 0, (float) 0, (float) w, (float) frameHeight, null );
-//                double[][] cm = {
-//                        {2.353675, -0.8596982, -0.3466206, 0.0, 0.0},
-//                        {-0.7270595, 1.593924, 0.08920667, 0.0, 0.0},
-//                        {-0.05648472, 0.1896461, 0.7934276, 0.0, 0.0},
-//                        {0.0, 0.0, 0.0, 1.0, 0.0}
-//                };
-//                frame = BandCombineDescriptor.create( frame, cm, null );
-            } else {
-                rotated.setParameter( xform, 0 );
-            }
-            // Find a writer for that file extensions
-            ImageWriter writer = null;
-            Iterator iter = ImageIO.getImageWritersByFormatName( "TIFF" );
-            if ( iter.hasNext() ) {
-                writer = (ImageWriter) iter.next();
-            }
-            if ( writer != null ) {
-                ImageOutputStream ios = null;
-                try {
-                    // Prepare output file
-                    ios = ImageIO.createImageOutputStream( new File( fname ) );
-                    writer.setOutput( ios );
-                    // Set some parameters
-                    ImageWriteParam param = writer.getDefaultWriteParam();
-                    PlanarImage rendering = frame.getNewRendering();
-                    writer.write( null, new IIOImage( rendering, null, null ), param );
+            try {
+                if ( frame == null ) {
+                    rotated = AffineDescriptor.create( 
+                            scanImage, xform, 
+                            Interpolation.getInstance( Interpolation.INTERP_BICUBIC ), 
+                            null, null );
+                    frame = CropDescriptor.create( 
+                            rotated, (float) 0, (float) 0, 
+                            (float) w, (float) frameHeight, null );
+                } else {
+                    rotated.setParameter( xform, 0 );
+                }
+                // Find a writer for that file extensions
+                ImageWriter writer = null;
+                Iterator iter = ImageIO.getImageWritersByFormatName( "TIFF" );
+                if ( iter.hasNext() ) {
+                    writer = (ImageWriter) iter.next();
+                }
+                if ( writer != null ) {
+                    ImageOutputStream ios = null;
+                    try {
+                        // Prepare output file
+                        ios = ImageIO.createImageOutputStream( new File( fname ) );
+                        writer.setOutput( ios );
+                        // Set some parameters
+                        ImageWriteParam param = writer.getDefaultWriteParam();
+                        PlanarImage rendering = frame.getNewRendering();
+                        writer.write( null, new IIOImage( rendering, null, null ), param );
 
-                    // Cleanup
-                    ios.flush();
-                    rendering.dispose();
+                        // Cleanup
+                        ios.flush();
+                        rendering.dispose();
 
-                } catch ( IOException ex ) {
-                    Logger.getLogger( SplitScan.class.getName() ).log( Level.SEVERE, null, ex );
-                } finally {
-                    if ( ios != null ) {
-                        try {
-                            ios.close();
-                        } catch ( IOException e ) {
-                            System.err.println( "Error closing output stream" );
+                    } catch ( IOException ex ) {
+                        Logger.getLogger( SplitScan.class.getName() ).log( Level.SEVERE, null, ex );
+                    } finally {
+                        if ( ios != null ) {
+                            try {
+                                ios.close();
+                            } catch ( IOException e ) {
+                                System.err.println( "Error closing output stream" );
+                            }
                         }
+                        writer.dispose();
                     }
-                    writer.dispose();
                 }
+                frame.dispose();
+                rotated.dispose();
+                System.gc();
+                System.gc();
+                frameNum++;
+            } catch ( Exception e ) {
+                System.err.println( "Error saving frame " + frameNum + ": " + e.getMessage() ); 
             }
-            if ( debug ) {
-                String debugFname = String.format( "debug_%05d.png", (Integer) n );
-                BufferedImage debugLayer = new BufferedImage( frame.getWidth(), frame.getHeight(), BufferedImage.TYPE_INT_RGB );
-                for ( int row = 0; row < frame.getHeight(); row++ ) {
-                    debugLayer.getRaster().setPixel( perfBorderX[startY + row], row, new int[]{255, 255, 255} );
-                }
-                try {
-                    ImageIO.write( debugLayer, "PNG", new File( debugFname ) );
-                } catch ( IOException ex ) {
-                    Logger.getLogger( SplitScan.class.getName() ).log( Level.SEVERE, null, ex );
-                }
-            }   
-            frame.dispose();
-            rotated.dispose();
-            System.gc();
-            System.gc();
         }
     }
 
@@ -513,24 +509,77 @@ public class SplitScan {
         return ret;
     }
 
+    static String fname;
+    static String maskName;
+    static String outTmpl = "frame_%05d.tif";
+    static boolean isDebug = false;
+    static String debugDir;
     
+    static File getDebugImageFile( String desc ) {
+        File inFile = new File( fname );
+        String fn = inFile.getName();
+        // Strip the ending of the file name
+        int dotPos = fn.lastIndexOf( "." );
+        if ( dotPos > 0 ) {
+            fn = fn.substring( 0, dotPos );
+        }
+        String debugFname = String.format( "%s_%s.tif", fn, desc );
+        File ddir = null;
+        if ( debugDir != null ) {
+            ddir = new File( debugDir );
+        }
+        return new File( ddir, debugFname );
+    }
+    
+    public static void usage() {
+        System.err.println( "Usage: splitscan [-d|--debug] -m maskfile -o outfile_template infile" );
+    }
+    
+    public static void parseArgs( String args[] ) {
+        int n = 0;
+        while ( n < args.length ) {
+            if ( args[n].equals( "-d" ) || args[n].equals( "--debug" ) ) {
+                isDebug = true;
+                debugDir = args[n+1];
+                n++;
+            } else if ( args[n].equals( "-o" ) ) {
+                outTmpl = args[n+1];
+                n++;
+            } else if ( args[n].equals( "-m" ) ) {
+                maskName = args[n+1];
+                n++;
+            } else {
+                fname = args[n];
+                break;
+            }
+            n++;
+        }
+        if ( n < args.length-1 ) {
+            usage();
+            System.exit( -1 );
+        }
+    }
     
     
     /**
      * @param args the command line arguments
      */
     public static void main( String[] args ) {
+        parseArgs( args );
         log.setLevel( Level.FINE );
         JAI.setDefaultTileSize(new Dimension( 64, 64 ) );
         JAI.getDefaultInstance().setTileCache( new SunTileCache( 100*1024*1024 ) );
         SplitScan t = new SplitScan(  );
         long startTime = System.currentTimeMillis();
-        System.out.println( "Reading image "  + args[0] );
-        RenderedImage img = t.readImage( args[0] );
-        System.out.println( "using " + args[1] + " as mask");
-        RenderedImage maskImg = t.readImage( args[1] );
+        System.out.println( "Reading image "  + fname );
+        RenderedImage img = t.readImage( fname );
         System.out.println( "done, width " + img.getWidth() + " height " + img.getHeight() );
-        System.out.println( "done, width " + maskImg.getWidth() + " height " + maskImg.getHeight() );
+        RenderedImage maskImg = img;
+        if ( maskName != null ) {
+            System.out.println( "using " + maskName + " as mask" );
+            maskImg = t.readImage( maskName );
+            System.out.println( "done, width " + maskImg.getWidth() + " height " + maskImg.getHeight() );
+        }
         System.out.println( "Creating perforation mask" );
         if ( img.getWidth() > img.getHeight() ) {
             System.out.println( "Rotating image by 90 degrees" );
@@ -542,11 +591,8 @@ public class SplitScan {
         t.findPerfHolePoints( binaryImg );
         long analysisTime = System.currentTimeMillis() - startTime;
         System.out.println( "Image analyzed in " + ((double)analysisTime)/1000.0);
-        t.fnameTmpl = "frame_%05d.tif";
-        if ( args.length > 1 ) {
-            t.fnameTmpl = args[2];
-        }
-        t.saveFrames( img, t.fnameTmpl );
+        t.fnameTmpl = outTmpl;
+        t.saveFrames( img, outTmpl );
         long saveTime = System.currentTimeMillis() - analysisTime - startTime;
         System.out.println( "Images saved in " + ((double)saveTime)/1000.0);
     }
