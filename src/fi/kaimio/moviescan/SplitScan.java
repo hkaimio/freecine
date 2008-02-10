@@ -26,6 +26,9 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.ArrayList;
+import java.util.ArrayList;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -397,24 +400,24 @@ public class SplitScan {
     }
     
     private void filterPerforations() {
-        int perfLeft = perforations.size();
-        PerforationSeries perfSeries[] = new PerforationSeries[perforations.size()];
-        int series = 0;
+        List<PerforationSeries> perfSeries = new ArrayList<PerforationSeries>();
         PerforationSeries best = null;
         int bestQuality = Integer.MAX_VALUE;
-        while ( perfLeft > 0 ) {
-            System.out.println( "Series " + series );
-            PerforationSeries s = new PerforationSeries();
-            perfSeries[series] = s; 
-            
-            for ( Perforation p : perforations ) {
-                if ( p.series == null ) {
-                    if ( s.addIfFits( p ) ) {
-                        System.out.println( "  " + p.x + ", " + p.y );
-                        perfLeft--;
-                    }
+        for ( Perforation p : perforations ) {
+            boolean fits = false;
+            for ( PerforationSeries s : perfSeries ) {
+                if ( s.addIfFits( p ) ) {
+                    fits = true;
                 }
             }
+            if ( !fits ) {
+                PerforationSeries s = new PerforationSeries();
+                s.addIfFits( p );
+                perfSeries.add( s );
+            }
+        }
+
+        for ( PerforationSeries s : perfSeries ){
             int q = s.getQuality();
             System.out.print( "  Quality " + q );
             if ( q < bestQuality ) {
@@ -424,10 +427,9 @@ public class SplitScan {
             } else {
                 System.out.println();
             }
-            series++;
         }
         
-        perforations = best.getPerforations();
+        perforations = best.getPerforations( scanImage.getHeight() );
         System.out.println( "" + perforations.size() + " frames found" );
     }
     

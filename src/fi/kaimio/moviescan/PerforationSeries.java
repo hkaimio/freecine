@@ -5,6 +5,7 @@
 package fi.kaimio.moviescan;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -93,9 +94,16 @@ class PerforationSeries {
         return quality;
     }
     
-    public List<Perforation> getPerforations() {
+    int median( int[] arr ) {
+        int[] copy = Arrays.copyOf(arr, arr.length );
+        Arrays.sort(copy);
+        return copy[copy.length >> 1];        
+    }
+    
+    public List<Perforation> getPerforations( int maxY ) {
         List<Perforation> ret = new ArrayList<Perforation>();
         Perforation lastPerf = null;
+                
         for ( Perforation p : perforations ) {
             if ( lastPerf != null ) {
                 if ( p.y - lastPerf.y > PERF_DISTANCE+Y_TOLERANCE ) {
@@ -103,17 +111,52 @@ class PerforationSeries {
                     int addCount = ( p.y - lastPerf.y + 2 * Y_TOLERANCE ) / PERF_DISTANCE;
                     int dy = (p.y-lastPerf.y ) / addCount;
                     int dx = (p.x-lastPerf.x ) / addCount;
+                    System.out.println( String.format( "Interpolating %d images, dx = %d, dy = %d", addCount, dx, dy ));
                     for ( int n = 1 ; n < addCount ; n++ ) {
                         Perforation newP = new Perforation();
                         newP.x = lastPerf.x + n * dx;
                         newP.y = lastPerf.y + n * dy;
                         newP.series = this;
                         ret.add(newP);
+                        System.out.println( String.format( "Added interpolated image( %s, %s )", newP.x, newP.y ) );
                     }
                 }
             }
             ret.add( p );
+            System.out.println( String.format("Added normal image      ( %s, %s )", p.x, p.y ) );
+            lastPerf = p;
         }
+        
+        // Are we missing some perforations in the beginning?
+        if ( ret.get( 0 ).y > PERF_DISTANCE && ret.size() > 1 ) {
+            // Extrapolate the first frames based on the next ones
+            int dx = ret.get( 1 ).x - ret.get( 0 ).x;
+            int dy = ( ret.get( ret.size()-1 ).y - ret.get(0).y ) / (ret.size()-1);
+            int y = ret.get(0).y-dy;
+            int x = ret.get(0).x-dx;
+            System.out.println( String.format( "Extrapolating beginning dx=%d, dy=%d, x=%d, y=%d", dx, dy, x, y ));
+            while ( y > 0 ) {
+                Perforation p = new Perforation();
+                p.x = x;
+                p.y = y;
+                x -= dx;
+                y -= dy;
+                ret.add(0, p);
+            }
+        }
+        
+        // Filter the Y coordinates of the perforations with simple median filter
+        Perforation p1=null, p2=null, p3=null;
+        for ( Perforation p : ret ) {
+            p3 = p2;
+            p2 = p1;
+            p1 = p;
+            if ( p1 != null && p2 != null && p3 != null ) {
+                int[] arr = new int[] {p1.x, p2.x, p3.x};
+                p2.x = median( arr );
+            }
+        }
+        
         return ret;
     }
 }

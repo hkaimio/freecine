@@ -1,5 +1,10 @@
 package fi.kaimio.moviescan;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
 public class Perforation {
 
     public int x;
@@ -8,13 +13,14 @@ public class Perforation {
     
     private boolean isInitialized = false;
     private int startY;
-    private int rightBorder;
+    private int startEdgeRight;
     private int leftBorder;
     private int blackCount;
     private int whiteCount;
+    List<Integer> rightEdgePoints = new ArrayList<Integer>();
     
     public int getRightBorder() {
-        return rightBorder;
+        return startEdgeRight;
     }
     
     public Perforation() {
@@ -35,7 +41,7 @@ public class Perforation {
         for ( int n = 0 ; n < whiteColumnStart.length ; n++ ) {
             if ( whiteColumnStart[n] > startY-10 ) {
                 whiteCount++;
-                rightBorder = n;
+                startEdgeRight = n;
             } else if ( whiteCount > 50 ) {
                 break;
             }
@@ -48,16 +54,43 @@ public class Perforation {
         }
 
         // Calculate the number of pixels turned black
-        for ( int n = 0 ; n < rightBorder ; n++ ) {
+        for ( int n = 0 ; n < startEdgeRight ; n++ ) {
             if ( blackColumnStarts[n] == y ) {
                 blackCount++;
             }
         }
         
+        // Calculate the rightmost white point in this line
+        int whitePixels = 0;
+        for ( int n = 0; n < whiteColumnStarts.length; n++ ) {
+            if ( blackColumnStarts[n] > whiteColumnStarts[n] ) {
+                // this pixel is black
+                if ( whitePixels > 50 ) {
+                    rightEdgePoints.add( n );
+                    break;
+                }
+            } else {
+                // White pixel
+                whitePixels++;
+            }
+        }
+        
+        
         // If enough columns have turned black, the perforation is ready
         if ( blackCount * 10 > whiteCount * 9 ) {
-            x = rightBorder;
-            this.y = ( startY + y ) >> 1;
+            // X coordinate is the median of pixels belonging to right border
+            int medianRight = 0;
+            if ( rightEdgePoints.size() > 0 ) {
+                Collections.sort( rightEdgePoints  );
+                medianRight = rightEdgePoints.get( rightEdgePoints.size() >> 1 );
+            }
+            x = startEdgeRight;
+            if ( Math.abs( medianRight - startEdgeRight ) < 10 ) {
+                x = medianRight;
+            }
+            this.y = (startY + y) >> 1;
+            System.out.println( String.format( "  start edge right = %d, right edge median = %d (%+d), y = %d",
+                    startEdgeRight, medianRight, medianRight - startEdgeRight, y ) );
             return true;
         }
         return false;
