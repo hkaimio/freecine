@@ -19,11 +19,19 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferByte;
+import java.awt.image.DataBufferInt;
+import java.awt.image.Raster;
 import java.awt.image.RenderedImage;
 import java.awt.image.SampleModel;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.ArrayList;
@@ -50,7 +58,9 @@ import javax.imageio.stream.ImageOutputStream;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.Interpolation;
 import javax.media.jai.JAI;
+import javax.media.jai.KernelJAI;
 import javax.media.jai.PlanarImage;
+import javax.media.jai.RasterFactory;
 import javax.media.jai.RenderedOp;
 import javax.media.jai.TiledImage;
 import javax.media.jai.iterator.RectIter;
@@ -59,7 +69,9 @@ import javax.media.jai.operator.AffineDescriptor;
 import javax.media.jai.operator.BandCombineDescriptor;
 import javax.media.jai.operator.BandSelectDescriptor;
 import javax.media.jai.operator.BinarizeDescriptor;
+import javax.media.jai.operator.ConvolveDescriptor;
 import javax.media.jai.operator.CropDescriptor;
+import javax.media.jai.operator.FormatDescriptor;
 import javax.media.jai.operator.MaxFilterDescriptor;
 import javax.media.jai.operator.MinDescriptor;
 import javax.media.jai.operator.TransposeDescriptor;
@@ -148,6 +160,30 @@ public class SplitScan {
         }
         return null;
     }
+
+    private void saveBorder( int[] pictureBorder ) {
+        BufferedWriter w = null;
+        try {
+            File f = new File( "border.txt" );
+            w = new BufferedWriter( new FileWriter( f ) );
+            for ( int n = 0; n < pictureBorder.length ; n++ ) {
+                w.write( String.format( "%d, %d\n", n, pictureBorder[n] ) );
+                if ( n % 1000 == 0 ) {
+                    System.err.println( "" + n + " lines written" );
+                } 
+            }
+            w.close();
+        } catch ( IOException ex ) {
+            Logger.getLogger( SplitScan.class.getName() ).log( Level.SEVERE, null, ex );
+        } finally {
+            try {
+                w.close();
+            } catch ( IOException ex ) {
+                Logger.getLogger( SplitScan.class.getName() ).log( Level.SEVERE, null, ex );
+            }
+        }
+        
+    }
     
     private void saveDebugImage( RenderedImage src, String desc, int x, int y,
             int w, int h ) {
@@ -174,7 +210,7 @@ public class SplitScan {
         RenderedOp minrg = MinDescriptor.create(redBand, greenBand, null );
         RenderedOp min = MinDescriptor.create(minrg, blueBand, null );
         RenderedOp maxf = MaxFilterDescriptor.create( min, MaxFilterDescriptor.MAX_MASK_SQUARE, 10, null );
-        return BinarizeDescriptor.create(maxf, (Double) 64000.0, null );
+        return maxf;
     }
     
     private RenderedImage getRotatedImage( RenderedImage img ) {
@@ -217,7 +253,209 @@ public class SplitScan {
     static final int MIN_LINES = 120;
     static final int MEDIAN_WINDOW = 100;
     
+    static final int WHITE_THRESHOLD = 64000;
+    static final int BLACK_THRESHOLD = 3000;
+    private int getColorCategory( int level ) {
+        if ( level < BLACK_THRESHOLD ) {
+            return 0;
+        }
+        if ( level > WHITE_THRESHOLD ) {
+            return 2;
+        }
+        return 1;
+    }
+    
+    double minRadii = 20.0;
+    double maxRadii = 25.0;
+    
+    
+    
+    void houghTransform( RenderedImage img ) {
+        KernelJAI sxKernel = new KernelJAI( 3 , 3 , 
+                new float[]{-1.0f, 0.0f, 1.0f,
+                            -2.0f, 0.0f, 2.0f,
+                            -1.0f, 0.0f, 1.0f });
+        KernelJAI syKernel = new KernelJAI( 3 , 3 , 
+                new float[]{-1.0f, -2.0f, -1.0f,
+                             0.0f,  0.0f,  0.0f,
+                             1.0f,  2.0f,  1.0f });
+        
+        List<Point> startCorners = new ArrayList<Point>();
+        List<Point> endCorners = new ArrayList<Point>();
+        RenderedImage intImg = FormatDescriptor.create(img, DataBuffer.TYPE_DOUBLE, null );
+        RenderedImage sxImg = ConvolveDescriptor.create(intImg, sxKernel, null );
+        RenderedImage syImg = ConvolveDescriptor.create(intImg, syKernel, null );
 
+        SampleModel sm = sxImg.getSampleModel(  );
+        int nbands = sm.getNumBands(  );
+        double[] sxPixel = new double[nbands];
+        double[] syPixel = new double[nbands];
+        
+        Rectangle perfArea = new Rectangle(0, 0, img.getWidth()/4, img.getHeight() );
+        RectIter sxIter = RectIterFactory.create(sxImg, perfArea );
+        RectIter syIter = RectIterFactory.create(syImg, perfArea );
+        int accumHeight = (int) maxRadii + 2;
+
+        int width = (int)perfArea.getWidth(); // Dimensions of the image
+        int height = 2000;
+        int[][] startAccum = new int[(int) (maxRadii - minRadii)][width*accumHeight];
+        int[][] endAccum = new int[(int) (maxRadii - minRadii)][width*accumHeight];
+        byte[] imageDataSingleArray = new byte[width * height];
+        // Create a Data Buffer from the values on the single image array.
+        DataBufferByte dbuffer = new DataBufferByte( imageDataSingleArray,
+                width * height );
+        // Create an int data sample model.
+        SampleModel sampleModel =
+                RasterFactory.createBandedSampleModel( DataBuffer.TYPE_BYTE,
+                width,
+                height,
+                1 );
+        // Create a compatible ColorModel.
+        ColorModel colorModel = PlanarImage.createColorModel( sampleModel );
+        // Create a WritableRaster.
+        Raster raster = RasterFactory.createWritableRaster( sampleModel, dbuffer,
+                new Point( 0, 0 ) );
+        int y = 0;
+        int maxVal = 0;
+        double minAngle = Math.PI * 2.0;
+        double maxAngle = 0.0;
+        while ( !sxIter.nextLineDone() && !syIter.nextLineDone() ) {
+            if ( y % 1000 == 0 && y > 0 ) {
+                System.out.println( "" + y + " lines analyzed" );
+            }
+            sxIter.startPixels();
+            syIter.startPixels();
+            int x = 0;
+            while ( !sxIter.nextPixelDone() && !syIter.nextPixelDone() ) {
+                sxIter.getPixel( sxPixel );
+                syIter.getPixel( syPixel );
+                
+                // imageDataSingleArray[x + width * y ] = (byte)Math.min( 255, ( Math.abs(sxPixel[0]) / 1024 ) );
+                double isq = sxPixel[0] * sxPixel[0] + syPixel[0] * syPixel[0];
+                if ( isq > 900 * 65536 ) {
+                    // This seems like a border
+                    if ( syPixel[0] <= 0 && sxPixel[0] >= 0 ) {
+                        double intensity = Math.sqrt(isq);
+                        for ( double r = minRadii; r < maxRadii ; r+= 1.0 ) {
+                            
+                            double cx = (double)x - r * sxPixel[0] / intensity;
+                            double cy = (double)y - r * syPixel[0] / intensity;
+//                            if ( x > 110 && x < 130 && y > 230 && y < 260 && r == 20 ) {
+//                                System.out.println( String.format( "(%d, %d) -> (%f , %f)", x, y, cx, cy ) );
+//                            }
+                            if ( cx > 0.0 ) {
+                                int accumLine = (int)cy % accumHeight;
+                                startAccum[(int)(r-minRadii)][(int)cx + width * accumLine]++;
+                                if ( startAccum[(int)(r-minRadii)][(int)cx + width * accumLine] > maxVal ) {
+                                    maxVal = startAccum[(int)(r-minRadii)][(int)cx + width * accumLine];
+                                }
+                            }
+                        }
+                    } 
+                    if ( syPixel[0] >= 0 && sxPixel[0] >= 0 ) {
+                        double intensity = Math.sqrt(isq);
+                        for ( double r = minRadii; r < maxRadii ; r+= 1.0 ) {
+                            
+                            double cx = (double)x - r * sxPixel[0] / intensity;
+                            double cy = (double)y - r * syPixel[0] / intensity;
+//                            if ( x > 110 && x < 130 && y > 230 && y < 260 && r == 20 ) {
+//                                System.out.println( String.format( "(%d, %d) -> (%f , %f)", x, y, cx, cy ) );
+//                            }
+                            if ( cx > 0.0 && cy > 0.0 ) {
+                                int accumLine = (int)cy % accumHeight;
+                                endAccum[(int)(r-minRadii)][(int)cx + width * accumLine]++;
+                                if ( endAccum[(int)(r-minRadii)][(int)cx + width * accumLine] > maxVal ) {
+                                    maxVal = endAccum[(int)(r-minRadii)][(int)cx + width * accumLine];
+                                }
+                            }
+                        }
+                    }  
+                }
+                x++;
+            }
+            y++;
+            
+            // Read & zero this line in accumulator
+            int y2 = y - accumHeight;
+            int l = y % accumHeight;
+            if ( y2 > 0 ) {
+                for ( int n = 0; n < perfArea.getWidth(); n++ ) {
+                    for ( int r = 0; r < (int) (maxRadii - minRadii); r++ ) {
+                        if ( startAccum[r][n + width * (y % accumHeight)] > 8 ) {
+                            // Is this a local maxima?
+                            int val = startAccum[r][n + width * (y % accumHeight)];
+                            if ( val == getLocalMaxima( startAccum, r, n, y, width  ) ) {
+                                startCorners.add( new Point(n, y) );
+                                System.out.println( String.format( "Found corner, quality = %d, r = %d, (%d, %d)", val, r, n, y ) );
+                            }
+                        }
+                        if ( endAccum[r][n + width * (y2 % accumHeight)] > 8 ) {
+                            // Is this a local maxima?
+                            int val = startAccum[r][n + width * (y2 % accumHeight)];
+                            if ( val == getLocalMaxima( startAccum, r, n, y2, width  ) ) {
+                                endCorners.add( new Point(n, y2) );
+                                System.out.println( String.format( "Found end corner, quality = %d, r = %d, (%d, %d)", val, r, n, y2 ) );
+                            }
+                        }
+                    }
+                }
+            }
+            for ( int n = 0; n < perfArea.getWidth(); n++ ) {
+                for ( int r = 0; r < (int) (maxRadii - minRadii); r++ ) {
+                    startAccum[r][n + width * (y % accumHeight)] = 0;
+                    endAccum[r][n + width * (y % accumHeight)] = 0;
+                }
+            }
+        }
+        // Find perforations
+        int perfMinWidth = 160;
+        int perfMaxWidth = 180;
+        for ( Point sp : startCorners ) {
+            for ( Point ep : endCorners ) {
+                if ( ep.y - sp.y > perfMaxWidth ) {
+                    break;
+                }
+                if ( Math.abs( ep.x - sp.x ) < 10 && ep.y - sp.y > perfMinWidth ) {
+                    Perforation p = new Perforation();
+                    p.x = (ep.x + sp.x ) >> 1;
+                    p.y = (ep.y + sp.y ) >> 1;
+                    perforations.add( p );
+                }
+            }
+        }
+        // Create a TiledImage using the SampleModel and ColorModel.
+        TiledImage tiledImage = new TiledImage( 0, 0, width, height, 0, 0,
+                sampleModel,
+                colorModel );
+        // Set the data of the tiled image to be the raster.
+        tiledImage.setData( raster );
+        JAI.create( "filestore", tiledImage, "intpattern.tif", "TIFF" );
+    }
+    
+    int getLocalMaxima( int[][] accum, int r, int x, int y, int width ) {
+        int max = 0;
+        int ris =  Math.max( 0, r );
+        int rie = Math.min( (int)(maxRadii-minRadii), r+1 );
+        int xis = Math.max( 0, x-1 );
+        int xie = Math.min( accum[0].length, x+1 );
+        int yis = Math.max( 0, y-1 );
+        int yie = y+1;
+        int height = accum[0].length / width;
+        for ( int ri = ris; ri < rie ; ri++ ) {
+            for ( int xi = xis ; xi < xie ; xi++ ) {
+                for ( int yi = yis ; yi < yie ; yi++ ) {
+                    int i = accum[ri][xi + width * (yi%height)];
+                    if ( i > max ) {
+                        max = i;
+                    }
+                }                
+            }
+        }
+        return max;
+    }
+    
+    int[] pictureBorder;
+    
     private void findPerfHolePoints( RenderedImage img ) {
         perfBorderX = new int[ img.getHeight()];
         /**
@@ -227,6 +465,7 @@ public class SplitScan {
         RectIter iter = RectIterFactory.create(img, perfArea );
         SampleModel sm = img.getSampleModel(  );
         int nbands = sm.getNumBands(  );
+        pictureBorder = new int[(int)perfArea.getHeight() ];
         int[] pixel = new int[nbands];
         int x=0, y=-1;
         int perfStartY = -1;
@@ -248,7 +487,6 @@ public class SplitScan {
         int lastLineRunStart = perfAreaWidth;
         
         Set<Perforation> unfinishedPerfs = new HashSet<Perforation>();
-        
         while ( !iter.nextLineDone() ) {
             y++;
             int pixelsInLine = 0;
@@ -258,19 +496,58 @@ public class SplitScan {
             iter.startPixels();
             int runLength = 0;
             int runStart = Integer.MAX_VALUE;
+            
+            // X coordinate of last non-white pixel
+            int lastNonWhite = 0;
+            // X coordinate of last non-black pixel
+            int lastNonBlack = 0;
+            // X coordinate where the last black are ends
+            int blackEnd = perfAreaWidth;
+            // X coordinate where the last white area ends
+            int whiteEnd = perfAreaWidth;
+            // Histogram of number of black, "grey" and white pixels 50 pixels back
+            int histBack[] = new int[3];
+            int histFwd[] = new int[3];
+            boolean pictureBorderFound = false;
             while( !iter.nextPixelDone()  ) {
                 iter.getPixel( pixel );
-                if ( pixel[0] > 0 ) {
-                    if ( lastLinePixels[x] == 0 ) {
+                                
+                if ( pixel[0] > WHITE_THRESHOLD ) {
+                    if ( lastLinePixels[x] <= WHITE_THRESHOLD ) {
                         lastWhiteStarts[x] = y;
                     }
                 } else {
-                    if ( lastLinePixels[x] > 0 ) {
+                    if ( lastLinePixels[x] > WHITE_THRESHOLD ) {
                         lastBlackStart[x] = y;
                     }
                 }
                 lastLinePixels[x] = pixel[0];
-                if ( pixel[0] > 0 ) {
+                
+                // Update the histogram windows, "back" for columns [x-60,x-30], "fwd" for [x-29, x]
+                if ( x >= 60 ) {
+                    int p = getColorCategory( lastLinePixels[x-60] );
+                    histBack[p]--;
+                }
+                if ( x >= 30 ) {
+                    int p = getColorCategory( lastLinePixels[x-30] );
+                    histBack[p]++;
+                    histFwd[p]--;
+                }
+                int p = getColorCategory( lastLinePixels[x] );
+                histFwd[p]++;
+                
+                if ( x > 60 && !pictureBorderFound ) {
+                    if ( histBack[0] < 2 && histBack[1] < 2 && histFwd[2] < 2 ) {
+                        // Only white backwards, no white ahead -> picture border
+                        pictureBorder[y] = x;
+                        pictureBorderFound = true;
+                    } else if ( histBack[2] < 2 && histBack[1] < 2 && histFwd[0] < 2 ) {
+                        // Only black backwards, no black ahead -> picture border
+                        pictureBorder[y] = x;
+                        pictureBorderFound = true;
+                    }
+                }                
+                if ( pixel[0] > WHITE_THRESHOLD ) {
                     if ( runStart > x ) {
                         runStart = x;
                         runLength++;
@@ -335,68 +612,8 @@ public class SplitScan {
                 lastPerfStartedAtLine = y;
             }
         }
-            //            
-//
-//            // Calculate median of white pixels in recent lines
-//            lastLines[n] = pixelsInLine;
-//            firstRunStartWindow[n] = firstRunStart;
-//            n++;
-//            if ( n >= MEDIAN_WINDOW ) {
-//                n = 0;
-//            }
-//            int medianPixels = median( lastLines );
-//            int medianRunStarts = median( firstRunStartWindow );
-//            
-//            if ( y < MEDIAN_WINDOW ) {
-//                // The ring buffer is not yet full
-//                continue;
-//            }
-//
-//            
-//            // Analyze this line
-//            if ( isPerforation ) {
-//                if ( medianPixels <= PERF_HOLE_THRESHOLD ) {
-//                    // The perforation ends here
-//
-//                    perfEndY = y - (MEDIAN_WINDOW >> 1);
-//                    System.out.println( "  perfEnd at " + perfEndY );
-//                    // So many black lines in a row that we can be pretty sure
-//                    int perfCenterY = (perfEndY + perfStartY) >> 1;
-//                    int perfCenterX = getFrameLeft( perfStartY, perfEndY );
-//                    if ( perfCenterX > 0 && perfEndY - perfStartY > MIN_LINES ) {
-//                        int prevX = 0;
-//                        int prevY = 0;
-//                        if ( perforations.size() >= 1 ) {
-//                            Perforation prevPerf = perforations.get( perforations.size() -1 );
-//                            prevX = prevPerf.x;
-//                            prevY = prevPerf.y;
-//                        }
-//                        System.out.println( 
-//                                String.format( "Found perforation at (%d, %d) %+d, %+d", 
-//                                perfCenterX, perfCenterY,
-//                                perfCenterX-prevX, perfCenterY-prevY ) );
-//                        Perforation p = new Perforation();
-//                        p.x = perfCenterX;
-//                        p.y = perfCenterY;
-//                        perforations.add( p );
-//                        // Save image of the perforation
-//                        int imageY = perfCenterY-200;
-//                        imageY = Math.max( 0, imageY );
-//                        saveDebugImage( maskImage, "hole", 
-//                                0, imageY, 
-//                                300, Math.min( 400, maskImage.getHeight()-imageY ) );
-//                    }
-//                    isPerforation = false;
-//                }
-//            } else {
-//                // Not in a perforation
-//                if ( medianPixels > PERF_HOLE_THRESHOLD ) {
-//                    perfStartY = y - (MEDIAN_WINDOW >> 1);
-//                    System.out.println( "  perfStart at " + perfStartY );
-//                    isPerforation = true;
-//                }
-//            }
-//        }
+        
+        saveBorder( pictureBorder );
     }
     
     private void filterPerforations() {
@@ -430,7 +647,20 @@ public class SplitScan {
         }
         
         perforations = best.getPerforations( scanImage.getHeight() );
+        for ( Perforation p : perforations ) {
+            p.x = getMedianPictureBorder( Math.max( 0, p.y-800), Math.min( pictureBorder.length, p.y+800) );
+        }
         System.out.println( "" + perforations.size() + " frames found" );
+    }
+    
+    private int getMedianPictureBorder( int start, int end ) {
+        int[] points = Arrays.copyOfRange(pictureBorder, start, end);
+        Arrays.sort(points);
+        int firstNonNull = 0;
+        while ( firstNonNull < points.length && points[firstNonNull] == 0 ) {
+            firstNonNull++;
+        }
+        return ( firstNonNull < points.length ) ? points[firstNonNull+points.length >> 1] : 0;
     }
     
     final static int frameStartX = 0;
@@ -714,14 +944,17 @@ public class SplitScan {
             System.out.println( "done, width " + maskImg.getWidth() + " height " + maskImg.getHeight() );
         }
         System.out.println( "Creating perforation mask" );
-        if ( img.getWidth() > img.getHeight() ) {
+        if ( img.getWidth() > img.  getHeight() ) {
             System.out.println( "Rotating image by 90 degrees" );
             img = t.getRotatedImage(img);
             maskImg = t.getRotatedImage( maskImg );
         }
-        RenderedImage binaryImg = t.findPerforationEdges( maskImg );
-        t.scanImage = img;
-        t.findPerfHolePoints( binaryImg );
+        
+        t.houghTransform(maskImg);
+        
+        //RenderedImage binaryImg = t.findPerforationEdges( maskImg );
+        //t.scanImage = img;
+        //t.findPerfHolePoints( binaryImg );
         t.filterPerforations();
         long analysisTime = System.currentTimeMillis() - startTime;
         System.out.println( "Image analyzed in " + ((double)analysisTime)/1000.0);

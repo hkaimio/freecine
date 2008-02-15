@@ -146,15 +146,15 @@ class PerforationSeries {
         }
         
         // Filter the Y coordinates of the perforations with simple median filter
-        Perforation p1=null, p2=null, p3=null;
-        for ( Perforation p : ret ) {
-            p3 = p2;
-            p2 = p1;
-            p1 = p;
-            if ( p1 != null && p2 != null && p3 != null ) {
-                int[] arr = new int[] {p1.x, p2.x, p3.x};
-                p2.x = median( arr );
+        for ( int n = 0; n < ret.size() ; n++ ) {
+            int start = Math.max( 0, n - 2 );
+            int end = Math.min( ret.size(), n+3 );
+            int[]arr = new int[end-start];
+            for ( int i = 0; i < arr.length; i++ ) {
+                arr[i] = ret.get( i + start ).x;
+                
             }
+            ret.get( n ).x = median( arr );
         }
         
         return ret;
