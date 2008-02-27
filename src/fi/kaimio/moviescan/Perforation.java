@@ -18,6 +18,7 @@ public class Perforation {
     private int blackCount;
     private int whiteCount;
     List<Integer> rightEdgePoints = new ArrayList<Integer>();
+    List<Perforation> nextPerfCandidates = new ArrayList<Perforation>();
     
     public int getRightBorder() {
         return startEdgeRight;
@@ -46,6 +47,14 @@ public class Perforation {
                 break;
             }
         }
+    }
+    
+    public void addNextPerfCandidate( Perforation p ) {
+        nextPerfCandidates.add( p );
+    }
+    
+    public List<Perforation> getNextPerfCandidates() {
+        return nextPerfCandidates;
     }
     
     public boolean processLine( int[] whiteColumnStarts, int[] blackColumnStarts, int y ) {

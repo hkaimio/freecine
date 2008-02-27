@@ -10,21 +10,16 @@
 package fi.kaimio.moviescan;
 
 import com.sun.media.jai.operator.ImageReadDescriptor;
-import com.sun.media.jai.opimage.AffineCRIF;
 import com.sun.media.jai.util.SunTileCache;
-import fi.kaimio.moviescan.Perforation;
-import java.awt.Dimension;
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
-import java.awt.image.DataBufferInt;
 import java.awt.image.Raster;
 import java.awt.image.RenderedImage;
 import java.awt.image.SampleModel;
@@ -33,16 +28,19 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.ArrayList;
 import java.util.ArrayList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.Stack;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.IIOImage;
@@ -66,9 +64,7 @@ import javax.media.jai.TiledImage;
 import javax.media.jai.iterator.RectIter;
 import javax.media.jai.iterator.RectIterFactory;
 import javax.media.jai.operator.AffineDescriptor;
-import javax.media.jai.operator.BandCombineDescriptor;
 import javax.media.jai.operator.BandSelectDescriptor;
-import javax.media.jai.operator.BinarizeDescriptor;
 import javax.media.jai.operator.ConvolveDescriptor;
 import javax.media.jai.operator.CropDescriptor;
 import javax.media.jai.operator.FormatDescriptor;
@@ -246,6 +242,7 @@ public class SplitScan {
     int[] perfBorderX = null;
     
     List<Perforation> perforations = new ArrayList<Perforation>();
+    List<Perforation> perfCandidates = new ArrayList<Perforation>();
     
     // List<Integer> perfY = new ArrayList<Integer>(  );
     // List<Integer> perfX = new ArrayList<Integer>(  );
@@ -268,9 +265,13 @@ public class SplitScan {
     double minRadii = 20.0;
     double maxRadii = 25.0;
     
+    static final int EDGE_MIN_GRADIENT = 0x10;
+    static final int CORNER_MIN_HOUGH = 6;
     
+    List<PointCluster> pointClusters = new ArrayList<PointCluster>();
     
     void houghTransform( RenderedImage img ) {
+        maskImage = img; 
         KernelJAI sxKernel = new KernelJAI( 3 , 3 , 
                 new float[]{-1.0f, 0.0f, 1.0f,
                             -2.0f, 0.0f, 2.0f,
@@ -297,7 +298,7 @@ public class SplitScan {
         int accumHeight = (int) maxRadii + 2;
 
         int width = (int)perfArea.getWidth(); // Dimensions of the image
-        int height = 2000;
+        int height = (int)perfArea.getHeight();
         int[][] startAccum = new int[(int) (maxRadii - minRadii)][width*accumHeight];
         int[][] endAccum = new int[(int) (maxRadii - minRadii)][width*accumHeight];
         byte[] imageDataSingleArray = new byte[width * height];
@@ -332,7 +333,7 @@ public class SplitScan {
                 
                 // imageDataSingleArray[x + width * y ] = (byte)Math.min( 255, ( Math.abs(sxPixel[0]) / 1024 ) );
                 double isq = sxPixel[0] * sxPixel[0] + syPixel[0] * syPixel[0];
-                if ( isq > 900 * 65536 ) {
+                if ( isq > EDGE_MIN_GRADIENT * EDGE_MIN_GRADIENT ) {
                     // This seems like a border
                     if ( syPixel[0] <= 0 && sxPixel[0] >= 0 ) {
                         double intensity = Math.sqrt(isq);
@@ -381,20 +382,22 @@ public class SplitScan {
             if ( y2 > 0 ) {
                 for ( int n = 0; n < perfArea.getWidth(); n++ ) {
                     for ( int r = 0; r < (int) (maxRadii - minRadii); r++ ) {
-                        if ( startAccum[r][n + width * (y % accumHeight)] > 8 ) {
+                        if ( startAccum[r][n + width * (y % accumHeight)] >= CORNER_MIN_HOUGH ) {
                             // Is this a local maxima?
                             int val = startAccum[r][n + width * (y % accumHeight)];
                             if ( val == getLocalMaxima( startAccum, r, n, y, width  ) ) {
                                 startCorners.add( new Point(n, y) );
                                 System.out.println( String.format( "Found corner, quality = %d, r = %d, (%d, %d)", val, r, n, y ) );
+                                // imageDataSingleArray[n+width*y] = (byte) 0xff;
                             }
                         }
-                        if ( endAccum[r][n + width * (y2 % accumHeight)] > 8 ) {
+                        if ( endAccum[r][n + width * (y2 % accumHeight)] > CORNER_MIN_HOUGH ) {
                             // Is this a local maxima?
-                            int val = startAccum[r][n + width * (y2 % accumHeight)];
-                            if ( val == getLocalMaxima( startAccum, r, n, y2, width  ) ) {
+                            int val = endAccum[r][n + width * (y2 % accumHeight)];
+                            if ( val == getLocalMaxima( endAccum, r, n, y2, width  ) ) {
                                 endCorners.add( new Point(n, y2) );
                                 System.out.println( String.format( "Found end corner, quality = %d, r = %d, (%d, %d)", val, r, n, y2 ) );
+                                // imageDataSingleArray[n+width*y2] = (byte) 0x80;
                             }
                         }
                     }
@@ -419,27 +422,74 @@ public class SplitScan {
                     Perforation p = new Perforation();
                     p.x = (ep.x + sp.x ) >> 1;
                     p.y = (ep.y + sp.y ) >> 1;
-                    perforations.add( p );
+                    perfCandidates.add( p );
+                    imageDataSingleArray[p.x+width*p.y] = (byte) 0x40;
+                    addPointToCluster( p.x, p.y );                    
                 }
             }
         }
-        // Create a TiledImage using the SampleModel and ColorModel.
+        
+        System.out.println( String.format( "%d clusters:", pointClusters.size() ) );
+        for ( PointCluster c : pointClusters ) {
+            System.out.println( String.format("  (%d, %d) %d points", 
+                    c.getCentroidX(), c.getCentroidY(), c.getPointCount() ) );
+            imageDataSingleArray[c.getCentroidX()+width*c.getCentroidY()] = (byte) 0xff;
+        }
+        
+//        System.out.println( String.format( "%d perforations found", perfCandidates.size()));
+//        int clusterCount = 34;
+//        int[] cx = new int[clusterCount];
+//        int[] cy = new int[clusterCount];
+//        for ( int n = 0; n < clusterCount ; n++ ) {
+//            cx[n] = 100;
+//            cy[n] = n * 800 + 200;
+//        }
+//        KMeans km = new KMeans( perfCandidates, clusterCount, cx, cy );
+//        for ( int n = 0 ; n < km.getClusterCount() ; n++ ) {
+//            int kx = km.getCentroidX(n);
+//            int ky = km.getCentroidY(n);
+//            if ( kx < width && ky < img.getHeight() ) {
+//                 imageDataSingleArray[kx+width*ky] = (byte) 0xff;                
+//            }
+//        }
+        // Create a TiledIme using the SampleModel and ColorModel.
         TiledImage tiledImage = new TiledImage( 0, 0, width, height, 0, 0,
                 sampleModel,
                 colorModel );
         // Set the data of the tiled image to be the raster.
         tiledImage.setData( raster );
-        JAI.create( "filestore", tiledImage, "intpattern.tif", "TIFF" );
+        JAI.create( "filestore", tiledImage, "debug_hough.tif", "TIFF" );
+    }
+    
+    static private int maxClusterRadius = 7;
+    
+    private void addPointToCluster( int x, int y ) {
+        PointCluster closestCluster = null;
+        int closestClusterSqDist = Integer.MAX_VALUE;
+        for ( PointCluster c : pointClusters ) {
+            int sqDist = c.getSqDist(x, y);
+            if ( sqDist < closestClusterSqDist ) {
+                closestClusterSqDist = sqDist;
+                closestCluster = c;
+            }            
+        }
+        if ( closestClusterSqDist < maxClusterRadius * maxClusterRadius ) {
+            closestCluster.addPoint(x, y);
+        } else {
+            PointCluster c = new PointCluster();
+            c.addPoint(x, y);
+            pointClusters.add( c );
+        }
     }
     
     int getLocalMaxima( int[][] accum, int r, int x, int y, int width ) {
         int max = 0;
-        int ris =  Math.max( 0, r );
+        int ris =  Math.max( 0, r-1 );
         int rie = Math.min( (int)(maxRadii-minRadii), r+1 );
-        int xis = Math.max( 0, x-1 );
-        int xie = Math.min( accum[0].length, x+1 );
-        int yis = Math.max( 0, y-1 );
-        int yie = y+1;
+        int xis = Math.max( 0, x-2 );
+        int xie = Math.min( accum[0].length, x+2 );
+        int yis = Math.max( 0, y-2 );
+        int yie = y+2;
         int height = accum[0].length / width;
         for ( int ri = ris; ri < rie ; ri++ ) {
             for ( int xi = xis ; xi < xie ; xi++ ) {
@@ -616,7 +666,114 @@ public class SplitScan {
         saveBorder( pictureBorder );
     }
     
+    static final int PERF_DIST_TOL_PIXELS = 20;
+    static final int PERF_DISTANCE = 800;
+    static private double Y_TOL = 0.025;
+    static private double MAX_K = 20.0 / 800.0;
+    
+    
+    Deque<Perforation> currentPath = new ArrayDeque<Perforation>();
+    int optimalPathError = Integer.MAX_VALUE;
+    
+    private void findPerfPath( Perforation p, Perforation p1, Perforation p2, int maxDdx, int missCount ) {
+        // Are there perforations missing between last and current perforations?
+        currentPath.addLast( p );
+        if ( currentPath.size() > 40 ) {
+            System.out.println( "Path length " + currentPath.size() );
+        }
+        int prevy = (p1 != null ) ? p1.y : 0;
+        int dy = p.y - prevy;
+        int numFrames = (int) Math.round( (double) dy / PERF_DISTANCE );
+        if ( numFrames < 1 ) {
+            numFrames = 1;
+        } 
+        missCount += numFrames-1;
+        
+        // Calculate the 2nd derivate maximum
+        if ( p2 != null ) {
+            int ddx = Math.abs( p2.x + p.x - 2 * p1.x );
+            maxDdx = Math.max( ddx, maxDdx );
+        }
+
+        // How many frames are missing from the series?
+        int framesAfter = ( maskImage.getHeight() - p.y ) / PERF_DISTANCE;
+        
+        int q = maxDdx + 10 * (missCount+ framesAfter);
+        
+        if ( q < optimalPathError ) {
+            optimalPathError = q;
+            System.out.print( "Error " + q + ": " );
+            for ( Perforation perf : currentPath ) {
+                System.out.print(  String.format( "(%d, %d) ", perf.x, perf.y ) );
+            }
+            System.out.println();
+        }
+        
+        // Find the optimal path from all possible continuations
+        
+        for ( Perforation nextPerf : p.getNextPerfCandidates() ) {
+            findPerfPath(nextPerf, p, p1, maxDdx, missCount);
+        }
+        currentPath.removeLast();
+    }
+    
+    
     private void filterPerforations() {
+        perforations = new ArrayList<Perforation>();
+        for ( PointCluster c : pointClusters ) {
+            if ( c.getPointCount() > 10 ) {
+                Perforation p = new Perforation();
+                p.x = c.getCentroidX();
+                p.y = c.getCentroidY();
+                perforations.add( p );
+            }
+        }
+//        double maxPairDist = 0;
+//        double minPairDist = Double.MAX_VALUE;
+//        double maxDevRel = 0;
+//        double minDevRel = Double.MAX_VALUE;
+//        int pairCount = 0;
+//        int minSq = (PERF_DISTANCE-PERF_DIST_TOL_PIXELS)*(PERF_DISTANCE-PERF_DIST_TOL_PIXELS);
+//        int maxSq = (PERF_DISTANCE+PERF_DIST_TOL_PIXELS)*(PERF_DISTANCE+PERF_DIST_TOL_PIXELS);
+//        for ( Perforation p1 : perfCandidates ) {
+//            for ( Perforation p2 : perfCandidates ) {
+//                if ( p2.y > p1.y+PERF_DISTANCE-50 && Math.abs( p2.x - p1.x ) < 50 ) {
+//                    int dx = p2.x - p1.x;
+//                    int dy = p2.y - p1.y;
+//                    int sqDist = dx*dx+dy*dy;
+//                    double dist = Math.sqrt( (double)sqDist );
+//                    minPairDist = Math.min( dist, minPairDist );
+//                    maxPairDist = Math.max( dist, maxPairDist );
+//                    int numFrames = (int) Math.round( dist / PERF_DISTANCE );
+//                    double devPixels = Math.abs( dist - PERF_DISTANCE * numFrames );
+//                    double devRel = (double) devPixels / (PERF_DISTANCE * numFrames );
+//                    double k = (double)dx / (double)dy;
+//                    
+//                    if ( numFrames > 0 && devRel < Y_TOL && k < MAX_K ) {
+//                        p1.addNextPerfCandidate(p2);                               
+//                        minDevRel = Math.min( devRel, minDevRel );
+//                        maxDevRel = Math.max( devRel, maxDevRel );
+//                        pairCount++;
+//                    }
+//                }
+//            }
+//        }
+//        
+//        System.out.println( String.format( "%d perforation pairs found, %f - %f", pairCount, minPairDist, maxPairDist ) );
+//        System.out.println( String.format( "Relative error, %f - %f",minDevRel, maxDevRel ) );
+//        
+//        
+//        int startPointCount = 0;
+//        for ( Perforation p : perfCandidates ) {
+//            if ( startPointCount % 1000 == 0 ) {
+//                System.out.println( "" + startPointCount + " staring points analyzed" );
+//            }
+//            findPerfPath( p, null, null, 0, 0 );
+//            startPointCount++;
+//        }
+//        
+//        System.out.println( "Perforation candidate graph analyzed" );
+//        
         List<PerforationSeries> perfSeries = new ArrayList<PerforationSeries>();
         PerforationSeries best = null;
         int bestQuality = Integer.MAX_VALUE;
@@ -646,10 +803,10 @@ public class SplitScan {
             }
         }
         
-        perforations = best.getPerforations( scanImage.getHeight() );
-        for ( Perforation p : perforations ) {
-            p.x = getMedianPictureBorder( Math.max( 0, p.y-800), Math.min( pictureBorder.length, p.y+800) );
-        }
+        perforations =  best.getPerforations( maskImage.getHeight() );
+//        for ( Perforation p : perforations ) {
+//            p.x = getMedianPictureBorder( Math.max( 0, p.y-800), Math.min( maskImage.getHeight(), p.y+800) );
+//        }
         System.out.println( "" + perforations.size() + " frames found" );
     }
     
