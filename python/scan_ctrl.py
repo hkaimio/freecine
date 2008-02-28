@@ -16,8 +16,10 @@ class FilmMover:
         self.connection = blueNXT.Blue( 0 )
 
     def move_film( self ):
+	print "Moving film"
         self.connection.put( "scan" )
         time.sleep( 10 )
+	print "done"
 
 print "mover"
         
