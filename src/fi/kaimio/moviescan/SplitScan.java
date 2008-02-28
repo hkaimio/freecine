@@ -728,52 +728,7 @@ public class SplitScan {
                 perforations.add( p );
             }
         }
-//        double maxPairDist = 0;
-//        double minPairDist = Double.MAX_VALUE;
-//        double maxDevRel = 0;
-//        double minDevRel = Double.MAX_VALUE;
-//        int pairCount = 0;
-//        int minSq = (PERF_DISTANCE-PERF_DIST_TOL_PIXELS)*(PERF_DISTANCE-PERF_DIST_TOL_PIXELS);
-//        int maxSq = (PERF_DISTANCE+PERF_DIST_TOL_PIXELS)*(PERF_DISTANCE+PERF_DIST_TOL_PIXELS);
-//        for ( Perforation p1 : perfCandidates ) {
-//            for ( Perforation p2 : perfCandidates ) {
-//                if ( p2.y > p1.y+PERF_DISTANCE-50 && Math.abs( p2.x - p1.x ) < 50 ) {
-//                    int dx = p2.x - p1.x;
-//                    int dy = p2.y - p1.y;
-//                    int sqDist = dx*dx+dy*dy;
-//                    double dist = Math.sqrt( (double)sqDist );
-//                    minPairDist = Math.min( dist, minPairDist );
-//                    maxPairDist = Math.max( dist, maxPairDist );
-//                    int numFrames = (int) Math.round( dist / PERF_DISTANCE );
-//                    double devPixels = Math.abs( dist - PERF_DISTANCE * numFrames );
-//                    double devRel = (double) devPixels / (PERF_DISTANCE * numFrames );
-//                    double k = (double)dx / (double)dy;
-//                    
-//                    if ( numFrames > 0 && devRel < Y_TOL && k < MAX_K ) {
-//                        p1.addNextPerfCandidate(p2);                               
-//                        minDevRel = Math.min( devRel, minDevRel );
-//                        maxDevRel = Math.max( devRel, maxDevRel );
-//                        pairCount++;
-//                    }
-//                }
-//            }
-//        }
-//        
-//        System.out.println( String.format( "%d perforation pairs found, %f - %f", pairCount, minPairDist, maxPairDist ) );
-//        System.out.println( String.format( "Relative error, %f - %f",minDevRel, maxDevRel ) );
-//        
-//        
-//        int startPointCount = 0;
-//        for ( Perforation p : perfCandidates ) {
-//            if ( startPointCount % 1000 == 0 ) {
-//                System.out.println( "" + startPointCount + " staring points analyzed" );
-//            }
-//            findPerfPath( p, null, null, 0, 0 );
-//            startPointCount++;
-//        }
-//        
-//        System.out.println( "Perforation candidate graph analyzed" );
-//        
+      
         List<PerforationSeries> perfSeries = new ArrayList<PerforationSeries>();
         PerforationSeries best = null;
         int bestQuality = Integer.MAX_VALUE;
@@ -848,11 +803,18 @@ public class SplitScan {
          int y2 = (f2 < perforations.size() ) ?  perforations.get( f2 ).y : perforations.get( perforations.size()-1 ).y;
          double rot = Math.atan2((double)x2-x1, (double)(y2-y1) );
          // Translate the center of perforation to origin
-         AffineTransform xform = AffineTransform.getTranslateInstance( -perforations.get(frame).x, -perforations.get(frame).y );
          
-         xform.preConcatenate( AffineTransform.getRotateInstance(rot));
+         // AffineTransform xform = AffineTransform.getTranslateInstance( -perforations.get(frame).x, -perforations.get(frame).y );
+         AffineTransform xform = new AffineTransform();
+         xform.translate( 0, frameHeight/2 );
+         xform.rotate( rot );
+         xform.translate(-perforations.get(frame).x, -perforations.get(frame).y);
+         System.out.println( String.format( "frame %d: (%d, %d), rot %f", 
+                 frame,perforations.get(frame).x, -perforations.get(frame).y, rot ));
          
-         xform.preConcatenate(AffineTransform.getTranslateInstance(0, frameHeight/2));
+//         xform.preConcatenate( AffineTransform.getRotateInstance(rot));
+//
+//         xform.preConcatenate(AffineTransform.getTranslateInstance(0, frameHeight/2));
          return xform;
     }
     
@@ -1104,6 +1066,8 @@ public class SplitScan {
         if ( img.getWidth() > img.  getHeight() ) {
             System.out.println( "Rotating image by 90 degrees" );
             img = t.getRotatedImage(img);
+        }
+        if ( maskImg.getWidth() > maskImg.getHeight() ) {
             maskImg = t.getRotatedImage( maskImg );
         }
         

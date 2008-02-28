@@ -145,18 +145,23 @@ class PerforationSeries {
             }
         }
         
-        // Filter the Y coordinates of the perforations with simple median filter
+        // Low pass filter the perforation coordinates to decrease random errors
         for ( int n = 0; n < ret.size() ; n++ ) {
-            int start = Math.max( 0, n - 2 );
-            int end = Math.min( ret.size(), n+3 );
-            int[]arr = new int[end-start];
-            for ( int i = 0; i < arr.length; i++ ) {
-                arr[i] = ret.get( i + start ).x;
-                
+            int dx = 0;
+            int ddx = 0;
+            int ddy = 0;
+            if ( n > 0  ) {
+                dx = ret.get( n ).x - ret.get( n - 1 ).x;
             }
-            ret.get( n ).x = median( arr );
+            if ( n > 0 && n < ret.size() -1 ) {
+                ddx = ret.get( n+1 ).x + ret.get( n - 1 ).x - 2 * ret.get( n ).x;
+                ddy = ret.get( n+1 ).y + ret.get( n - 1 ).y - 2 * ret.get( n ).y;
+            }
+            ret.get(n).x += ddx/2;
+            ret.get(n).y += ddy/2;
         }
         
+
         return ret;
     }
 }
