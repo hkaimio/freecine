@@ -14,7 +14,7 @@ import com.sun.jna.Structure;
  */
 public class SaneDeviceDescriptor extends Structure {
     
-    SaneDeviceDescriptor( Pointer p ) {
+    public SaneDeviceDescriptor( Pointer p ) {
         useMemory(p);
         read();
     }
