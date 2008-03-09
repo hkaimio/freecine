@@ -50,7 +50,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.Stack;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.IIOImage;
@@ -1057,105 +1056,143 @@ public class SplitScan {
      */
     public static void main( String[] args ) {
         parseArgs( args );
-        log.setLevel( Level.FINE );
-        JAI.setDefaultTileSize(new Dimension( 64, 64 ) );
-        JAI.getDefaultInstance().setTileCache( new SunTileCache( 100*1024*1024 ) );
-        JAI.getDefaultInstance().getTileScheduler().setParallelism( 4 );
-        SplitScan t = new SplitScan(  );
-        long startTime = System.currentTimeMillis();
-        System.out.println( "Reading image "  + fname );
-        // RenderedImage img = t.readImage( fname );
-        RenderedImage img = scanImage();
-        System.out.println( "done, width " + img.getWidth() + " height " + img.getHeight() );
-        RenderedImage maskImg = img;
-//        if ( maskName != null ) {
-//            System.out.println( "using " + maskName + " as mask" );
-//            maskImg = t.readImage( maskName );
-//            System.out.println( "done, width " + maskImg.getWidth() + " height " + maskImg.getHeight() );
-//        }
-        System.out.println( "Creating perforation mask" );
-        if ( img.getWidth() > img.  getHeight() ) {
-            System.out.println( "Rotating image by 90 degrees" );
-            img = t.getRotatedImage(img);
-        }
-        if ( maskImg.getWidth() > maskImg.getHeight() ) {
-            maskImg = t.getRotatedImage( maskImg );
-        }
-        
-        t.houghTransform(maskImg);
-        
-        //RenderedImage binaryImg = t.findPerforationEdges( maskImg );
-        //t.scanImage = img;
-        //t.findPerfHolePoints( binaryImg );
-        t.filterPerforations();
-        long analysisTime = System.currentTimeMillis() - startTime;
-        System.out.println( "Image analyzed in " + ((double)analysisTime)/1000.0);
-        t.fnameTmpl = outTmpl;
-        t.saveFrames( img, outTmpl );
-        long saveTime = System.currentTimeMillis() - analysisTime - startTime;
-        System.out.println( "Images saved in " + ((double)saveTime)/1000.0);
-    }
-    
-    static RenderedImage scanImage() {
         IntByReference version = new IntByReference();
         Sane sane = Sane.INSTANCE;
         int ret = sane.sane_init( version, null );
         System.out.println( "Sane init returner " + ret );
         System.out.println( "Sane version = " + version.getValue() );
-        SaneDeviceDescriptor d = new SaneDeviceDescriptor();
+
+        // Find the right scanner
         PointerByReference dList = new PointerByReference();
-        ret = sane.sane_get_devices( dList, true );
-        long offset = 0;
-        int deviceCount = 0;
         Pointer devPtr = null;
         SaneDevice dev = null;
-        while ( (devPtr = dList.getValue().getPointer( offset )) != null ) {
-            deviceCount++;
-            offset += Pointer.SIZE;
-            d = new SaneDeviceDescriptor( devPtr );
-            System.out.println( "Device " + deviceCount +  "(" + d.name + "): " + d.model );
-            try {
-                dev= new SaneDevice( d.name );
-                dev.setOption( "mode", "Color" );
-                dev.setOption( "depth", 16 );
-                dev.setOption( "tl-x", new FixedPointNumber( 30 << 16 ) );
-                dev.setOption( "tl-y", new FixedPointNumber( 48  << 16 ) );
-                dev.setOption( "br-x", new FixedPointNumber( 190 << 16 ) );
-                dev.setOption( "br-y", new FixedPointNumber( 55 << 16 ) );
-                dev.setOption( "resolution",4800 );
-                dev.setOption( "source", "Transparency Unit" );
-                ScanParameter params = dev.getScanParameter();
-                dev.startScan();
-                params = dev.getScanParameter();
-                int size = params.getBytesPerLine() * params.getLines() * 8 / params.getDepth();
-                short[] data = new short[size];
-                dev.read( data );
-                DataBufferUShort db = new DataBufferUShort( data, size );
-                SampleModel sampleModel =
-                        RasterFactory.createPixelInterleavedSampleModel( DataBuffer.TYPE_USHORT,
-                        params.getPixelsPerLine(),
-                        params.getLines(), 3, 3 * params.getPixelsPerLine(), new int[] {0,1,2});
-                // Create a compatible ColorModel.
-                ColorModel colorModel = PlanarImage.createColorModel( sampleModel );
-                // Create a WritableRaster.
-                Raster raster = RasterFactory.createWritableRaster( sampleModel, db,
-                        new Point( 0, 0 ) );
-                TiledImage tiledImage = new TiledImage( 0, 0, params.getPixelsPerLine(), params.getLines(), 0, 0,
-                        sampleModel,
-                        colorModel );
-                // Set the data of the tiled image to be the raster.
-                tiledImage.setData( raster );
-                return tiledImage;
+        ret = sane.sane_get_devices( dList, true );
+        int offset = 0;
+        try {
+            while ( (devPtr = dList.getValue().getPointer( offset )) != null ) {
+                offset += Pointer.SIZE;
+                SaneDeviceDescriptor d = new SaneDeviceDescriptor( devPtr );
 
-            } catch ( SaneException e ) {
-                System.err.println( e.getMessage() );
+                System.out.println( "Scanner " + d.name );
+                if ( d.name.startsWith( "epson2" ) ) {
+                    System.out.println( "Using device" + d.name );
+                    dev = new SaneDevice( d.name );
+                    break;
+                }
+
             }
-            dev.close();
-        // printOptions( d.name );
+            if ( dev == null ) {
+                System.err.println( "No scanner found" );
+                System.exit(1);
+            }
+                
+            dev.setOption( "mode", "Color" );
+            dev.setOption( "depth", 16 );
+            dev.setOption( "tl-x", new FixedPointNumber( 30 << 16 ) );
+            dev.setOption( "tl-y", new FixedPointNumber( 48 << 16 ) );
+            dev.setOption( "br-x", new FixedPointNumber( 190 << 16 ) );
+            dev.setOption( "br-y", new FixedPointNumber( 55 << 16 ) );
+            dev.setOption( "resolution", 4800 );
+            dev.setOption( "source", "Transparency Unit" );
+
+        } catch ( SaneException e ) {
+            System.out.println( "Error initializing Sane: " + e.getMessage() );
+            System.exit( 1 );
         }
-        System.out.println( "Sane init returner " + ret );
-        System.out.println( "Sane version = " + version.getValue() );
-        return null;
+
+        // Initialize film mover
+        FilmMover mover = new NxjFilmMover();
+        System.out.println( "Initialized film mover" );
+        
+        log.setLevel( Level.FINE );
+        JAI.setDefaultTileSize(new Dimension( 64, 64 ) );
+        JAI.getDefaultInstance().setTileCache( new SunTileCache( 100*1024*1024 ) );
+        JAI.getDefaultInstance().getTileScheduler().setParallelism( 4 );
+        long startTime = System.currentTimeMillis();
+        int scanNum = 0;
+        while ( true ) {
+            scanNum++;
+            SplitScan t = new SplitScan();
+            System.out.println( "Starting scan" );
+        
+            RenderedImage img = scanImage( dev );
+            TiledImage scanImg = (TiledImage) img;
+            System.out.println( "done, width " + img.getWidth() + " height " + img.getHeight() );
+            RenderedImage maskImg = img;
+            System.out.println( "Creating perforation mask" );
+            if ( img.getWidth() > img.getHeight() ) {
+                System.out.println( "Rotating image by 90 degrees" );
+                img = t.getRotatedImage( img );
+            }
+            if ( maskImg.getWidth() > maskImg.getHeight() ) {
+                maskImg = t.getRotatedImage( maskImg );
+            }
+
+            t.houghTransform( maskImg );
+            t.filterPerforations();
+            long analysisTime = System.currentTimeMillis() - startTime;
+            System.out.println( "Image analyzed in " + ((double) analysisTime) / 1000.0 );
+            String outTmpl = String.format( "tmp/frame_%04d_%%02d.png", scanNum );
+            System.out.printf("file name templace %s\n", outTmpl );
+            t.fnameTmpl = outTmpl;
+            t.saveFrames( img, outTmpl );
+            scanImg.dispose();
+            System.gc();
+            System.gc();
+            System.gc();
+            long saveTime = System.currentTimeMillis() - analysisTime - startTime;
+            System.out.println( "Images saved in " + ((double) saveTime) / 1000.0 );
+            try {
+                moveFilm( mover );
+              
+            } catch ( FilmMoverException e ) {
+                System.err.println(e.getMessage() );
+            } 
+        }
+    }
+    
+    static void moveFilm( FilmMover m ) throws FilmMoverException {
+        m.moveFilm();
+        while ( true ) {
+            try {
+                Thread.sleep( 1000 );
+            } catch ( InterruptedException e ) {
+            }
+            Set<FilmMoverState> state = m.getState();
+            if ( state.contains( FilmMoverState.LAST_MOVE_FINISHED ) && !state.contains( FilmMoverState.REEL_MOVING ) ) {
+                break;
+            }
+        }
     }
 
+    static RenderedImage scanImage( SaneDevice dev ) {
+        try {
+            ScanParameter params = dev.getScanParameter();
+            dev.startScan();
+            params = dev.getScanParameter();
+            int size = params.getBytesPerLine() * params.getLines() * 8 / params.getDepth();
+            short[] data = new short[size];
+            dev.read( data );
+            DataBufferUShort db = new DataBufferUShort( data, size );
+            SampleModel sampleModel =
+                    RasterFactory.createPixelInterleavedSampleModel( DataBuffer.TYPE_USHORT,
+                    params.getPixelsPerLine(),
+                    params.getLines(), 3, 3 * params.getPixelsPerLine(), new int[]{0, 1, 2} );
+            // Create a compatible ColorModel.
+            ColorModel colorModel = PlanarImage.createColorModel( sampleModel );
+            // Create a WritableRaster.
+            Raster raster = RasterFactory.createWritableRaster( sampleModel, db,
+                    new Point( 0, 0 ) );
+            TiledImage tiledImage = new TiledImage( 0, 0, params.getPixelsPerLine(), params.getLines(), 0, 0,
+                    sampleModel,
+                    colorModel );
+            // Set the data of the tiled image to be the raster.
+            tiledImage.setData( raster );
+            return tiledImage;
+
+        } catch ( SaneException e ) {
+            System.err.println( e.getMessage() );
+        }
+        return null;
+    }
 }
