@@ -1,70 +1,387 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- You may freely edit this file. See commented blocks below for -->
-<!-- some examples of how to customize the build. -->
-<!-- (If you delete it and reopen the project it will be recreated.) -->
-<project name="moviescan" default="default" basedir=".">
-    <description>Builds, tests, and runs the project moviescan.</description>
-    <import file="nbproject/build-impl.xml"/>
-
-    <import file="nbproject/profiler-build-impl.xml"/>    <!--
-
-    There exist several targets which are by default empty and which can be 
-    used for execution of your tasks. These targets are usually executed 
-    before and after some main targets. They are: 
-
-      -pre-init:                 called before initialization of project properties
-      -post-init:                called after initialization of project properties
-      -pre-compile:              called before javac compilation
-      -post-compile:             called after javac compilation
-      -pre-compile-single:       called before javac compilation of single file
-      -post-compile-single:      called after javac compilation of single file
-      -pre-compile-test:         called before javac compilation of JUnit tests
-      -post-compile-test:        called after javac compilation of JUnit tests
-      -pre-compile-test-single:  called before javac compilation of single JUnit test
-      -post-compile-test-single: called after javac compilation of single JUunit test
-      -pre-jar:                  called before JAR building
-      -post-jar:                 called after JAR building
-      -post-clean:               called after cleaning build products
-
-    (Targets beginning with '-' are not intended to be called on their own.)
-
-    Example of inserting an obfuscator after compilation could look like this:
-
-        <target name="-post-compile">
-            <obfuscate>
-                <fileset dir="${build.classes.dir}"/>
-            </obfuscate>
-        </target>
-
-    For list of available properties check the imported 
-    nbproject/build-impl.xml file. 
+<!--
+  Copyright (c) 2006-2008 Harri Kaimio
+  
+-->
 
 
-    Another way to customize the build is by overriding existing main targets.
-    The targets of interest are: 
+<project name="moviescan" default="dist" basedir=".">
+<description>
+    Movie film scanning with flatbed scanner
+</description>
+<!-- set global properties for this build -->
+<property name="src-common" location="src/main/common"/>
+<property name="src-pcapp" location="src/main/pcapp"/>
+<property name="src-nxj" location="src/main/nxj"/>
+<property name="build" location="build"/>
+<property name="dist"  location="dist"/>
+<property name="lib"  location="lib"/>
+<property name="basedir" location="."/>
 
-      -init-macrodef-javac:     defines macro for javac compilation
-      -init-macrodef-junit:     defines macro for junit execution
-      -init-macrodef-debug:     defines macro for class debugging
-      -init-macrodef-java:      defines macro for class execution
-      -do-jar-with-manifest:    JAR building (if you are using a manifest)
-      -do-jar-without-manifest: JAR building (if you are not using a manifest)
-      run:                      execution of project 
-      -javadoc-build:           Javadoc generation
-      test-report:              JUnit report generation
+<property file="build.properties"/> 
 
-    An example of overriding the target for project execution could look like this:
+<path id="runtime.path">
+    <fileset id="runtime.fileset" dir="${build.lib.dir}">
+        <include name="*"/>
+    </fileset>
+</path>
 
-        <target name="run" depends="moviescan-impl.jar">
-            <exec dir="bin" executable="launcher.exe">
-                <arg file="${dist.jar}"/>
-            </exec>
-        </target>
+<path id="project.class.path">
+    <fileset dir="${build.lib.dir}">
+        <include name="**/*.jar"/>
+    </fileset>
+    <pathelement path="${java.class.path}/"/>
+    <pathelement path="build"/>
+    <pathelement path="conf"/>
+    <pathelement path="src/main/resources"/>
+</path>
 
-    Notice that the overridden target depends on the jar target and not only on 
-    the compile target as the regular run target does. Again, for a list of available 
-    properties which you can use, check the target you are overriding in the
-    nbproject/build-impl.xml file. 
+<path id="debug.sourcepath" >
+    <pathelement path="${src-common}"/>
+    <pathelement path="src/test/java"/>
+</path>
 
-    -->
+<property environment="env"/>
+
+
+<target name="init">
+    <!-- Create the time stamp -->
+    <tstamp/>
+    <!-- Create the build directory structure used by compile -->
+    <mkdir dir="${build}"/>
+    
+    <!--
+    <copy file="conf/buildinfo.template.properties" 
+	    tofile="conf/buildinfo.properties"
+	    overwrite="true">
+        <filterset>
+            <filter token="svnrevision" value="${svnrevision}"/>
+	    <filter token="svn.info.url" value="${svn.info.url}"/>
+	    <filter token="build.time" value="${DSTAMP}_${TSTAMP}"/>
+	    <filter token="build.user" value="${user.name}"/>
+	</filterset>
+     </copy>
+     -->
+    <property file="conf/buildinfo.properties"/>   
+</target>
+
+<target name="compile" depends="init"
+        description="Compile the source" >
+    
+    
+    <!-- Compile the java code from ${src} into ${build} -->
+    <javac destdir="${build}" debug="on" classpathref="project.class.path">
+        <src path="${src-common}"/>
+        <src path="${src-pcapp}"/>
+    </javac>
+</target>
+
+<target name="dist" depends="compile"
+        description="Build Moviescan JAR files" >
+    
+    <!-- Create the distribution directory -->
+    <mkdir dir="${dist}/moviescan-latest"/>
+    <delete>
+        <fileset dir="${dist}/moviescan-latest" includes="**/*"/>
+        
+    </delete>
+    
+    
+    <!-- Convert the CLASSPATH from Ant path structure to a form that can be 
+    passed to MANIFEST Class-Path property -->
+    <pathconvert property="runtime-path" pathsep=" ">
+        <path refid="runtime.path"></path>
+        <mapper type="flatten"/>
+    </pathconvert>    
+    
+    <!-- Create the jar file  -->
+    <jar jarfile="${dist}/moviescan-latest/moviescan.jar">
+        <manifest>
+            <attribute name="Main-Class" value="fi.kaimio.moviescan.SplitScan"/>
+            <attribute name="Built-By" value="${user.name}"/>
+            <attribute name="Implementation-Version" value="build_${DSTAMP}"/>
+            <attribute name="Class-Path" value="${runtime-path}"/>
+            <attribute name="Build-time" value="${DSTAMP}_${TSTAMP}"/>
+        </manifest>
+        <fileset dir="${build}">
+            <exclude name="**/Test*.class"/>
+        </fileset>
+        
+        <!-- Include resources into the JAR -->
+        <fileset dir="conf" includes="*"/>
+        <fileset dir="src/main/resources" includes="*"/>
+    </jar>
+    
+    <!-- Copy needed JAR files to distribution directory -->
+    <copy todir="${dist}/moviescan-latest">
+        <fileset refid="runtime.fileset"/>   
+    </copy>
+    
+</target>
+
+<target name="testng" depends="dist" description="TestNG test">
+    <taskdef  resource="testngtasks" classpath="lib/testng.jar"/>
+    <testng outputDir="${reports.test}/testresults"
+            haltOnFailure="true" verbose="2">
+        <jvmarg value="${run.jvmargs}"/>
+        <jvmarg value="-Xdebug"/>
+        <jvmarg value="-Xnoagent"/>
+        <jvmarg value="-Djava.compiler=none"/>
+        <jvmarg value="-Dbasedir=${basedir}"/>
+        
+        <jvmarg value="-Xrunjdwp:transport=dt_socket,address=${jpda.address}"/>                
+        <classpath>
+            <path refid="project.class.path"/>
+            <pathelement location="${build.dir}"/>
+            <pathelement location="${conf.dir}"/>
+        </classpath>
+        
+        <classfileset dir="build"> 
+            <include name="**/Test**.class"/>
+        </classfileset>
+    </testng>         
+</target>
+
+<target name="testng.debug.single" depends="dist" description="TestNG debug single file">
+    <taskdef  resource="testngtasks" classpath="lib/testng.jar"/>
+    <nbjpdastart name="${classname}" addressproperty="jpda.address" transport="dt_socket">
+        <classpath refid="project.class.path"/>
+        <sourcepath refid="debug.sourcepath"/> 
+    </nbjpdastart>
+    <echo message="selected_file: ${selected_file}"/>
+    <testng outputDir="${reports.test}/testresults"
+            haltOnFailure="true" verbose="2">
+        <jvmarg value="${run.jvmargs}"/>
+        <jvmarg value="-Xdebug"/>
+        <jvmarg value="-Xnoagent"/>
+        <jvmarg value="-Djava.compiler=none"/>
+        <jvmarg value="-Dbasedir=${basedir}"/>
+        
+        <jvmarg value="-Xrunjdwp:transport=dt_socket,address=${jpda.address}"/>                
+        <classpath>
+            <path refid="project.class.path"/>
+            <pathelement location="${build.dir}"/>
+            <pathelement location="${conf.dir}"/>
+        </classpath>
+        
+        <classfileset dir="build"> 
+            <include name="${selected_file}.class"/>
+        </classfileset>
+    </testng>         
+</target>
+
+<!-- Profile single test case in Netbeans-->
+<target name="testng.profile.single" depends="dist" description="Profile in Netbeans profiler">
+    <fail unless="netbeans.home">This target can only run inside the NetBeans IDE.</fail>
+    <taskdef  resource="testngtasks" classpath="lib/testng.jar"/>
+    <!-- Start the profiler & waint for Java VM -->
+    <nbprofiledirect>
+        <classpath refid="project.class.path"/>
+    </nbprofiledirect>
+    <!-- Start application. Use basically the same command as for running the application -->
+    <testng outputDir="${reports.test}/testresults"
+            haltOnFailure="true" verbose="2">
+        <jvmarg value="${run.jvmargs}"/>
+        <jvmarg value="-Dbasedir=${basedir}"/>
+        <jvmarg value="${profiler.info.jvmargs.agent}"/>
+        
+        <classpath>
+            <path refid="project.class.path"/>
+            <pathelement location="${build.dir}"/>
+            <pathelement location="${conf.dir}"/>
+        </classpath>
+        
+        <classfileset dir="build"> 
+            <include name="${selected_file}.class"/>
+        </classfileset>
+    </testng>         
+</target>   
+
+<target name="test" depends="dist" description="Run JUnit tests">
+    <delete dir="./${reports.test}/testresults"/>
+    <mkdir dir="./${reports.test}/testresults"/>
+    <mkdir dir="./build/test_volume"/>
+    <junit fork="yes" dir="${basedir}" showoutput="yes" printsummary="yes">
+        <sysproperty key="moviescan.propFname" value="${junittest.properties}"/>
+        <sysproperty key="moviescan.configfile" value="${junittest.configfile}"/>      
+        <sysproperty key="basedir" value="${basedir}"/>
+        <formatter type="xml"/>
+        <formatter usefile="false" type="brief"/>
+        <classpath>
+            <path refid="project.class.path"/>
+            <pathelement location="${build.dir}"/>
+            <pathelement location="${conf.dir}"/>
+        </classpath>
+        <!--<test name="imginfo.PhotoInfoTest" outfile="${reports.test}/imginfo"/>-->
+        <batchtest todir="${reports.test}/testresults">
+            <fileset dir="build"> 
+                <include name="**/Test_*.class"/>
+                <!-- Exlude inner classes since these do not contain any test cases --> 
+                <exclude name="**/*$$*.class"/>
+            </fileset>
+        </batchtest>
+    </junit>
+    
+    <!-- Create a summary report -->
+    <junitreport todir="${reports.test}">
+        <fileset dir="${reports.test}/testresults">
+            <include name="TEST-*.xml"/>
+        </fileset>
+        <report format="frames" todir="./${reports.test}/html"/>
+    </junitreport>
+    
+</target>
+
+
+<target name="run" depends="dist" description="Run Moviescan">
+    <java fork="true" classname="fi.kaimio.moviescan.SplitScan">
+        <!-- Use large enough heap to fit also big images -->
+        <jvmarg value="-Xmx${heap.max_size}M"/>
+        <jvmarg value="${run.jvmargs}"/>
+        <classpath>
+            <path refid="project.class.path"/>
+        </classpath>
+    </java> 
+</target>
+
+<target name="debug" depends="compile" if="netbeans.home" description="Debug in Netbeans">  
+    <nbjpdastart name="Moviescan" addressproperty="jpda.address" transport="dt_socket">
+        <classpath refid="project.class.path"/>
+        
+        <sourcepath refid="debug.sourcepath"/> 
+    </nbjpdastart>
+    <java fork="true" classname="fi.kaimio.moviescan.SplitScan">
+        <jvmarg value="-Xmx${heap.max_size}M"/>
+        <!--<jvmarg value="-XX:+PrintGCDetails"/>-->
+        <jvmarg value="${run.jvmargs}"/>
+        <jvmarg value="-Xdebug"/>
+        <jvmarg value="-Xnoagent"/>
+        <jvmarg value="-Djava.compiler=none"/>
+        <jvmarg value="-Xrunjdwp:transport=dt_socket,address=${jpda.address}"/>
+        <classpath refid="project.class.path"/>
+    </java>
+</target>   
+
+<target name="debug-selected-files" depends="compile" if="netbeans.home" description="Debug a single file in Netbeans">
+    <fail unless="classname">Must set property 'classname'</fail>
+    <nbjpdastart name="${classname}" addressproperty="jpda.address" transport="dt_socket">
+        <classpath refid="project.class.path"/>
+        <sourcepath refid="debug.sourcepath"/> 
+    </nbjpdastart>
+    <java classname="${classname}" fork="true">
+        <jvmarg value="${run.jvmargs}"/>
+        <jvmarg value="-Xdebug"/>
+        <jvmarg value="-Xnoagent"/>
+        <jvmarg value="-Djava.compiler=none"/>
+        <jvmarg value="-Xrunjdwp:transport=dt_socket,address=${jpda.address}"/>
+        <classpath refid="project.class.path"/>
+    </java>
+</target>
+
+<!-- Profile in Netbeans 5 -->
+<target name="profile" depends="dist" description="Profile in Netbeans profiler">
+    <fail unless="netbeans.home">This target can only run inside the NetBeans IDE.</fail>
+    <!-- Start the profiler & waint for Java VM -->
+    <nbprofiledirect>
+        <classpath refid="project.class.path"/>
+    </nbprofiledirect>
+    <!-- Start application. Use basically the same command as for running the application -->
+    <java fork="true" classname="fi.kaimio.moviescan.SplitScan" jvm="${profiler.info.jvm}">
+        <!-- Use large enough heap to fit also big images -->
+        <jvmarg value="-Xmx${heap.max_size}M"/>
+        <jvmarg value="${run.jvmargs}"/>
+        <jvmarg value="${profiler.info.jvmargs.agent}"/>
+        <classpath>
+            <path refid="project.class.path"/>
+        </classpath>
+    </java> 
+</target>   
+
+<target name="doc" description="Create Javadoc documentation">
+    <javadoc packagenames = "*"
+             destdir="docs/api"
+             sourcepath="${src}"
+             author="true"
+             version="true"
+             use="true"
+             windowtitle="Moviescan API documentation">
+        
+        <classpath refid="project.class.path"/>
+        <doctitle><![CDATA[<h1>Moviescan</h1>]]></doctitle>
+        <bottom><![CDATA[<i>Copyright &#169; 2007 Harri Kaimio</i>]]></bottom>
+        <tag name="todo" scope="all" description="To do:" />
+        <link href="http://java.sun.com/j2se/1.5.0/docs/api/"/>
+    </javadoc>
+</target>
+
+
+<target name="clean"
+        description="clean up" >    
+    <!-- Delete the ${build} and ${dist} directory trees -->
+    <delete dir="${build}"/>
+    <delete dir="${dist}"/>
+</target>
+
+<target name="dist-bin-tgz" depends="dist"
+        description="Creates the binary distribution">
+<property name="version" value="${build.major}.${build.minor}.${build.patch}${build.version_shorttag}"/>
+<property name="tardir" value="moviescan-${build.major}.${build.minor}.${build.patch}${build.version_shorttag}"/>
+<tar destfile="${dist}/moviescan-${version}.tar.gz" compression="gzip">
+    <tarfileset dir="${dist}/moviescan-latest" prefix="${tardir}/lib">
+        <!-- Exclude JAI libraries since their license is not GPL compatible -->
+        <exclude name="**/jai_core.jar"/>
+        <exclude name="**/jai_codec.jar"/>
+    </tarfileset>
+    <tarfileset dir="." prefix="${tardir}">
+        <include name="relnotes.txt"/>
+        <include name="LICENSE.txt"/>
+    </tarfileset>
+</tar>
+</target>
+<target name="dist-src-tgz" depends="dist"
+        description="Creates the source distribution tar file">
+    <property name="version" value="${build.major}.${build.minor}.${build.patch}${build.version_shorttag}"/>
+    <property name="tardir" value="moviescan-${build.major}.${build.minor}.${build.patch}"/>
+    <tar destfile="${dist}/moviescan-src-${version}.tar.gz" compression="gzip">
+        <tarfileset dir="src" prefix="${tardir}/src">
+            <exclude name="**/.svn"/>
+        </tarfileset>
+        <tarfileset dir="lib" prefix="${tardir}/lib">
+            <exclude name="**/.svn"/>
+            <exclude name="**/jai_core.jar"/>
+            <exclude name="**/jai_codec.jar"/>
+        </tarfileset>
+        <tarfileset dir="conf" prefix="${tardir}/conf">
+            <exclude name="**/.svn"/>
+        </tarfileset>
+        <tarfileset dir="." prefix="${tardir}">
+            <include name="relnotes.txt"/>
+            <include name="LICENSE.txt"/>
+            <include name="build.xml"/>
+            <include name="build.properties"/>
+            <include name="forrest.properties"/>
+        </tarfileset>
+    </tar>
+</target>
+<target name="dist-testfiles-tgz" depends="dist"
+        description="Crates the test file distribution tar file">
+    <property name="version" value="${build.major}.${build.minor}.${build.patch}${build.version_shorttag}"/>
+    <property name="tardir" value="moviescan-${build.major}.${build.minor}.${build.patch}"/>
+    <tar destfile="${dist}/moviescan-testfiles-${version}.tar.gz" compression="gzip">
+        <tarfileset dir="tests" prefix="${tardir}/tests">
+            <exclude name="**/.svn"/>
+        </tarfileset>
+        <tarfileset dir="testfiles" prefix="${tardir}/testfiles">
+            <exclude name="**/.svn"/>
+        </tarfileset>
+        <tarfileset dir="." prefix="${tardir}">
+            <include name="relnotes.txt"/>
+            <include name="LICENSE.txt"/>
+        </tarfileset>
+    </tar>
+</target>
+
+
+<target name="dist-files" depends="dist-bin-tgz,dist-src-tgz,dist-testfiles-tgz"
+        description="Creates the distribution packages"/>
+
 </project>
