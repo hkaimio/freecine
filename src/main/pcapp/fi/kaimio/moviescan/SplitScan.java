@@ -25,7 +25,6 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
-import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
@@ -44,9 +43,7 @@ import java.util.ArrayList;
 import java.util.ArrayList;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Deque;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -73,12 +70,9 @@ import javax.media.jai.TiledImage;
 import javax.media.jai.iterator.RectIter;
 import javax.media.jai.iterator.RectIterFactory;
 import javax.media.jai.operator.AffineDescriptor;
-import javax.media.jai.operator.BandSelectDescriptor;
 import javax.media.jai.operator.ConvolveDescriptor;
 import javax.media.jai.operator.CropDescriptor;
 import javax.media.jai.operator.FormatDescriptor;
-import javax.media.jai.operator.MaxFilterDescriptor;
-import javax.media.jai.operator.MinDescriptor;
 import javax.media.jai.operator.TransposeDescriptor;
 import javax.media.jai.operator.TransposeDescriptor;
 
@@ -207,69 +201,13 @@ public class SplitScan {
     
     RenderedImage maskImage;
     
-    private RenderedImage findPerforationEdges( RenderedImage img ) {
-        maskImage = img;
-        RenderedOp redBand = BandSelectDescriptor.create( img, new int[] {0}, null );
-        RenderedOp greenBand = BandSelectDescriptor.create( img, new int[] {1}, null );
-        RenderedOp blueBand = BandSelectDescriptor.create( img, new int[] {2}, null );
-        RenderedOp minrg = MinDescriptor.create(redBand, greenBand, null );
-        RenderedOp min = MinDescriptor.create(minrg, blueBand, null );
-        RenderedOp maxf = MaxFilterDescriptor.create( min, MaxFilterDescriptor.MAX_MASK_SQUARE, 10, null );
-        return maxf;
-    }
-    
     private RenderedImage getRotatedImage( RenderedImage img ) {
         // TiledImage ti = new TiledImage( img, 64, 64 );
         return TransposeDescriptor.create(img, TransposeDescriptor.ROTATE_90, null);
     }
     
-    private void writeTiled( File in ) {
-        try {
-            ImageInputStream istrm = new FileImageInputStream( in );
-            ImageReader reader = ImageIO.getImageReadersByFormatName( "TIFF" ).next();
-            reader.setInput( istrm );
-            RenderedImage inImg = reader.readAsRenderedImage( 0, null );
-            RenderedImage striped = new TiledImage( inImg, inImg.getWidth(), 512 );
-            RenderedImage tiled = new TiledImage( striped, 512, 512 );
-            ImageOutputStream output = ImageIO.createImageOutputStream( new File( "/tmp/tmpimage.tif" ) );
-            ImageWriter writer = (ImageWriter) ImageIO.getImageWritersByFormatName( "TIFF" ).next();
-            writer.setOutput( output );
-            ImageWriteParam param = writer.getDefaultWriteParam();
-            param.setTilingMode( ImageWriteParam.MODE_EXPLICIT );
-            param.setTiling( 512, 512, 0, 0 );
-            writer.write(null,
-                     new IIOImage(tiled, null, reader.getImageMetadata(0)),
-                     param);
-        } catch ( IOException ex ) {
-            Logger.getLogger( SplitScan.class.getName() ).log( Level.SEVERE, null, ex );
-        }
-                    
-    }
-    
-    List<Point> perfPixels = new ArrayList<Point>( 1000000 );
-    int[] pixelsInLine = null;
-    int[] perfBorderX = null;
-    
     List<Perforation> perforations = new ArrayList<Perforation>();
     List<Perforation> perfCandidates = new ArrayList<Perforation>();
-    
-    // List<Integer> perfY = new ArrayList<Integer>(  );
-    // List<Integer> perfX = new ArrayList<Integer>(  );
-    static final int PERF_HOLE_THRESHOLD = 50;
-    static final int MIN_LINES = 120;
-    static final int MEDIAN_WINDOW = 100;
-    
-    static final int WHITE_THRESHOLD = 64000;
-    static final int BLACK_THRESHOLD = 3000;
-    private int getColorCategory( int level ) {
-        if ( level < BLACK_THRESHOLD ) {
-            return 0;
-        }
-        if ( level > WHITE_THRESHOLD ) {
-            return 2;
-        }
-        return 1;
-    }
     
     double minRadii = 20.0;
     double maxRadii = 25.0;
@@ -444,23 +382,7 @@ public class SplitScan {
                     c.getCentroidX(), c.getCentroidY(), c.getPointCount() ) );
             imageDataSingleArray[c.getCentroidX()+width*c.getCentroidY()] = (byte) 0xff;
         }
-        
-//        System.out.println( String.format( "%d perforations found", perfCandidates.size()));
-//        int clusterCount = 34;
-//        int[] cx = new int[clusterCount];
-//        int[] cy = new int[clusterCount];
-//        for ( int n = 0; n < clusterCount ; n++ ) {
-//            cx[n] = 100;
-//            cy[n] = n * 800 + 200;
-//        }
-//        KMeans km = new KMeans( perfCandidates, clusterCount, cx, cy );
-//        for ( int n = 0 ; n < km.getClusterCount() ; n++ ) {
-//            int kx = km.getCentroidX(n);
-//            int ky = km.getCentroidY(n);
-//            if ( kx < width && ky < img.getHeight() ) {
-//                 imageDataSingleArray[kx+width*ky] = (byte) 0xff;                
-//            }
-//        }
+
         // Create a TiledIme using the SampleModel and ColorModel.
         TiledImage tiledImage = new TiledImage( 0, 0, width, height, 0, 0,
                 sampleModel,
@@ -512,219 +434,11 @@ public class SplitScan {
         }
         return max;
     }
-    
-    int[] pictureBorder;
-    
-    private void findPerfHolePoints( RenderedImage img ) {
-        perfBorderX = new int[ img.getHeight()];
-        /**
-         The perforations should be in the 1/3 of the leftmost image.
-         */
-        Rectangle perfArea = new Rectangle(0, 0, img.getWidth()/4, img.getHeight() );
-        RectIter iter = RectIterFactory.create(img, perfArea );
-        SampleModel sm = img.getSampleModel(  );
-        int nbands = sm.getNumBands(  );
-        pictureBorder = new int[(int)perfArea.getHeight() ];
-        int[] pixel = new int[nbands];
-        int x=0, y=-1;
-        int perfStartY = -1;
-        int perfEndY = -1;
-        boolean isPerforation = false;
-        int linesToDecide = -1;
-        int perfAreaWidth = (int) perfArea.getWidth();
-        int lastLinePixels[] = new int[perfAreaWidth];
-        int lastWhiteStarts[] = new int[perfAreaWidth];
-        int lastBlackStart[] =  new int[perfAreaWidth];
-        int[] lastLines = new int[MEDIAN_WINDOW];        
-        int[] firstRunStartWindow = new int[MEDIAN_WINDOW];
-        for ( int n = 0 ; n < MEDIAN_WINDOW ; n++ ) {
-            firstRunStartWindow[n] = (int) perfArea.getWidth();
-        }
-        int n = 0;
-        int lastPerfStartedAtLine = 0;
-        System.out.println( "Finding perforations..." );
-        int lastLineRunStart = perfAreaWidth;
-        
-        Set<Perforation> unfinishedPerfs = new HashSet<Perforation>();
-        while ( !iter.nextLineDone() ) {
-            y++;
-            int pixelsInLine = 0;
-            int firstRunStart = perfAreaWidth;
-            perfBorderX[y] = 0;
-            x = 0;
-            iter.startPixels();
-            int runLength = 0;
-            int runStart = Integer.MAX_VALUE;
-            
-            // X coordinate of last non-white pixel
-            int lastNonWhite = 0;
-            // X coordinate of last non-black pixel
-            int lastNonBlack = 0;
-            // X coordinate where the last black are ends
-            int blackEnd = perfAreaWidth;
-            // X coordinate where the last white area ends
-            int whiteEnd = perfAreaWidth;
-            // Histogram of number of black, "grey" and white pixels 50 pixels back
-            int histBack[] = new int[3];
-            int histFwd[] = new int[3];
-            boolean pictureBorderFound = false;
-            while( !iter.nextPixelDone()  ) {
-                iter.getPixel( pixel );
-                                
-                if ( pixel[0] > WHITE_THRESHOLD ) {
-                    if ( lastLinePixels[x] <= WHITE_THRESHOLD ) {
-                        lastWhiteStarts[x] = y;
-                    }
-                } else {
-                    if ( lastLinePixels[x] > WHITE_THRESHOLD ) {
-                        lastBlackStart[x] = y;
-                    }
-                }
-                lastLinePixels[x] = pixel[0];
-                
-                // Update the histogram windows, "back" for columns [x-60,x-30], "fwd" for [x-29, x]
-                if ( x >= 60 ) {
-                    int p = getColorCategory( lastLinePixels[x-60] );
-                    histBack[p]--;
-                }
-                if ( x >= 30 ) {
-                    int p = getColorCategory( lastLinePixels[x-30] );
-                    histBack[p]++;
-                    histFwd[p]--;
-                }
-                int p = getColorCategory( lastLinePixels[x] );
-                histFwd[p]++;
-                
-                if ( x > 60 && !pictureBorderFound ) {
-                    if ( histBack[0] < 2 && histBack[1] < 2 && histFwd[2] < 2 ) {
-                        // Only white backwards, no white ahead -> picture border
-                        pictureBorder[y] = x;
-                        pictureBorderFound = true;
-                    } else if ( histBack[2] < 2 && histBack[1] < 2 && histFwd[0] < 2 ) {
-                        // Only black backwards, no black ahead -> picture border
-                        pictureBorder[y] = x;
-                        pictureBorderFound = true;
-                    }
-                }                
-                if ( pixel[0] > WHITE_THRESHOLD ) {
-                    if ( runStart > x ) {
-                        runStart = x;
-                        runLength++;
-                    }
-                    pixelsInLine++;
-                    if ( runLength > PERF_HOLE_THRESHOLD && firstRunStart > runStart ) {
-                        firstRunStart = runStart;
-                    }
-                } else if ( pixelsInLine > PERF_HOLE_THRESHOLD ) {
-                    /*
-                     There are enough white pixels in this line that 
-                     this looks like a perforation. Store the right border &
-                     continue
-                     */
-                    perfBorderX[y] = x;
-                }
-                x++;
-            }
-            
-            /*
-             Process this line for ongoing perforations
-             */
-            Set<Perforation> finished = new HashSet<Perforation>();
-            for ( Perforation p : unfinishedPerfs ) {
-                if ( p.processLine(lastWhiteStarts, lastBlackStart, y) ) {
-                    
-                    Perforation lastP = p; 
-                    if ( perforations.size() > 0 ) {
-                        lastP = perforations.get( perforations.size() - 1 );
-                    }
-                    perforations.add( p );
-                    finished.add( p );
-                    System.out.println(
-                            String.format( "Found perforation at (%d, %d) %+d, %+d",
-                            p.x, p.y,
-                            p.x - lastP.x, p.y - lastP.y ) );
-                    // Save image of the perforation
-                    int imageY = p.y - 200;
-                    imageY = Math.max( 0, imageY );
-                    saveDebugImage( maskImage, "hole",
-                            0, imageY,
-                            300, Math.min( 400, maskImage.getHeight() - imageY ) );
-                }
-            }
-            unfinishedPerfs.removeAll( finished );
-            
-            /* 
-             Calculate the number of columns in which a white area (possible 
-             perforation) has started in last 10 lines
-            */
-            int whiteStarted = 0;
-            int my = Math.max( y-10, lastPerfStartedAtLine+2 );
-            for ( int whiteStartLine : lastWhiteStarts ) {
-                if ( whiteStartLine > my ) {
-                    whiteStarted++;
-                }
-            }
-            if ( whiteStarted > 50 ) {
-                Perforation perf = new Perforation( lastWhiteStarts, y );
-                System.out.println( "Started new perforation at line " + y );
-                unfinishedPerfs.add( perf );
-                lastPerfStartedAtLine = y;
-            }
-        }
-        
-        saveBorder( pictureBorder );
-    }
-    
-    static final int PERF_DIST_TOL_PIXELS = 20;
     static final int PERF_DISTANCE = 800;
-    static private double Y_TOL = 0.025;
-    static private double MAX_K = 20.0 / 800.0;
     
     
     Deque<Perforation> currentPath = new ArrayDeque<Perforation>();
     int optimalPathError = Integer.MAX_VALUE;
-    
-    private void findPerfPath( Perforation p, Perforation p1, Perforation p2, int maxDdx, int missCount ) {
-        // Are there perforations missing between last and current perforations?
-        currentPath.addLast( p );
-        if ( currentPath.size() > 40 ) {
-            System.out.println( "Path length " + currentPath.size() );
-        }
-        int prevy = (p1 != null ) ? p1.y : 0;
-        int dy = p.y - prevy;
-        int numFrames = (int) Math.round( (double) dy / PERF_DISTANCE );
-        if ( numFrames < 1 ) {
-            numFrames = 1;
-        } 
-        missCount += numFrames-1;
-        
-        // Calculate the 2nd derivate maximum
-        if ( p2 != null ) {
-            int ddx = Math.abs( p2.x + p.x - 2 * p1.x );
-            maxDdx = Math.max( ddx, maxDdx );
-        }
-
-        // How many frames are missing from the series?
-        int framesAfter = ( maskImage.getHeight() - p.y ) / PERF_DISTANCE;
-        
-        int q = maxDdx + 10 * (missCount+ framesAfter);
-        
-        if ( q < optimalPathError ) {
-            optimalPathError = q;
-            System.out.print( "Error " + q + ": " );
-            for ( Perforation perf : currentPath ) {
-                System.out.print(  String.format( "(%d, %d) ", perf.x, perf.y ) );
-            }
-            System.out.println();
-        }
-        
-        // Find the optimal path from all possible continuations
-        
-        for ( Perforation nextPerf : p.getNextPerfCandidates() ) {
-            findPerfPath(nextPerf, p, p1, maxDdx, missCount);
-        }
-        currentPath.removeLast();
-    }
     
     
     private void filterPerforations() {
@@ -774,31 +488,9 @@ public class SplitScan {
         System.out.println( "" + perforations.size() + " frames found" );
     }
     
-    private int getMedianPictureBorder( int start, int end ) {
-        int[] points = Arrays.copyOfRange(pictureBorder, start, end);
-        Arrays.sort(points);
-        int firstNonNull = 0;
-        while ( firstNonNull < points.length && points[firstNonNull] == 0 ) {
-            firstNonNull++;
-        }
-        return ( firstNonNull < points.length ) ? points[firstNonNull+points.length >> 1] : 0;
-    }
-    
     final static int frameStartX = 0;
     final static int frameWidth = 1100;
     final static int frameHeight = 800;
-
-    private int getFrameLeft( int starty, int endy ) {
-        ArrayList<Integer> perfBorderPoints = new ArrayList<Integer>(400);
-        for ( int n = starty; n < endy; n++ ) {
-            if ( perfBorderX[n] > 0 ) {
-                perfBorderPoints.add( perfBorderX[n] );
-            }
-        }
-        Collections.sort( perfBorderPoints );
-        return perfBorderPoints.size() > 0 ? 
-            perfBorderPoints.get( perfBorderPoints.size() >> 1 ) : 0;
-    }
     
     AffineTransform getFrameXform( int frame ) {
         /**
@@ -884,18 +576,6 @@ public class SplitScan {
                     }
                 }
                 writer.dispose();
-            }
-        }
-        if ( debug ) {
-            String debugFname = String.format( "debug_%05d.png", (Integer) n );
-            BufferedImage debugLayer = new BufferedImage( frame.getWidth(), frame.getHeight(), BufferedImage.TYPE_INT_RGB );
-            for ( int row = 0; row < frame.getHeight(); row++ ) {
-                debugLayer.getRaster().setPixel( perfBorderX[startY + row], row, new int[]{255, 255, 255} );
-            }
-            try {
-                ImageIO.write( debugLayer, "PNG", new File( debugFname ) );
-            } catch ( IOException ex ) {
-                Logger.getLogger( SplitScan.class.getName() ).log( Level.SEVERE, null, ex );
             }
         }
         frame.dispose();
