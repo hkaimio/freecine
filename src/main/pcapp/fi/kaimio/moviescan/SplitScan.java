@@ -905,6 +905,46 @@ public class SplitScan {
 
     }
     
+    /**
+     Helper function to save image into a TILL file
+     @param img The image to be saved
+     @param f File into which the image will be saved
+     */
+    private static void saveImage( RenderedImage img, File f ) {
+        // Find a writer for that file extensions
+        ImageWriter writer = null;
+        Iterator iter = ImageIO.getImageWritersByFormatName( "TIFF" );
+        if ( iter.hasNext() ) {
+            writer = (ImageWriter) iter.next();
+        }
+        if ( writer != null ) {
+            ImageOutputStream ios = null;
+            try {
+                // Prepare output file
+                ios = ImageIO.createImageOutputStream( f );
+                writer.setOutput( ios );
+                // Set some parameters
+                ImageWriteParam param = writer.getDefaultWriteParam();
+                writer.write( null, new IIOImage( img, null, null ), param );
+
+                // Cleanup
+                ios.flush();
+
+            } catch ( IOException ex ) {
+                Logger.getLogger( SplitScan.class.getName() ).log( Level.SEVERE, null, ex );
+            } finally {
+                if ( ios != null ) {
+                    try {
+                        ios.close();
+                    } catch ( IOException e ) {
+                        System.err.println( "Error closing output stream" );
+                    }
+                }
+                writer.dispose();
+            }
+        }        
+    }
+    
     private void saveFrames( RenderedImage scanImage, String fnameTmpl ) {
         RenderedOp frame = null;
         RenderedOp rotated = null;
@@ -1101,7 +1141,7 @@ public class SplitScan {
         }
 
         // Initialize film mover
-        FilmMover mover = new NxjFilmMover();
+        FilmMover mover = null; // new NxjFilmMover();
         System.out.println( "Initialized film mover" );
         
         log.setLevel( Level.FINE );
@@ -1116,6 +1156,8 @@ public class SplitScan {
             System.out.println( "Starting scan" );
         
             RenderedImage img = scanImage( dev );
+            System.out.println( "Saving scan" );
+            saveImage( img, new File( "scan_" + scanNum + ".tif" ) );
             TiledImage scanImg = (TiledImage) img;
             System.out.println( "done, width " + img.getWidth() + " height " + img.getHeight() );
             RenderedImage maskImg = img;
@@ -1132,7 +1174,7 @@ public class SplitScan {
             t.filterPerforations();
             long analysisTime = System.currentTimeMillis() - startTime;
             System.out.println( "Image analyzed in " + ((double) analysisTime) / 1000.0 );
-            String outTmpl = String.format( "tmp/frame_%04d_%%02d.png", scanNum );
+            String outTmpl = String.format( "tmp/testframe_%04d_%%02d.png", scanNum );
             System.out.printf("file name templace %s\n", outTmpl );
             t.fnameTmpl = outTmpl;
             t.saveFrames( img, outTmpl );
@@ -1152,6 +1194,9 @@ public class SplitScan {
     }
     
     static void moveFilm( FilmMover m ) throws FilmMoverException {
+        if ( m == null ) {
+            return;
+        }
         m.moveFilm();
         while ( true ) {
             try {
@@ -1165,29 +1210,60 @@ public class SplitScan {
         }
     }
 
+    /**
+     Width of the tiles used for storing the scanned iamge
+     */
+    static final int TILE_WIDTH = 256;
+    
+    /**
+     Height of the tiles used for storing the scanned image
+     */
+    static final int TILE_HEIGHT = 256;
+    
+    /**
+     Scan image and store it in TiledImage
+     @param dev The scanner that will be user
+     @return RenderedImage containing the scanned image.
+     */
     static RenderedImage scanImage( SaneDevice dev ) {
         try {
             ScanParameter params = dev.getScanParameter();
             dev.startScan();
             params = dev.getScanParameter();
-            int size = params.getBytesPerLine() * params.getLines() * 8 / params.getDepth();
-            short[] data = new short[size];
-            dev.read( data );
-            DataBufferUShort db = new DataBufferUShort( data, size );
-            SampleModel sampleModel =
-                    RasterFactory.createPixelInterleavedSampleModel( DataBuffer.TYPE_USHORT,
-                    params.getPixelsPerLine(),
-                    params.getLines(), 3, 3 * params.getPixelsPerLine(), new int[]{0, 1, 2} );
-            // Create a compatible ColorModel.
-            ColorModel colorModel = PlanarImage.createColorModel( sampleModel );
-            // Create a WritableRaster.
-            Raster raster = RasterFactory.createWritableRaster( sampleModel, db,
-                    new Point( 0, 0 ) );
-            TiledImage tiledImage = new TiledImage( 0, 0, params.getPixelsPerLine(), params.getLines(), 0, 0,
-                    sampleModel,
-                    colorModel );
-            // Set the data of the tiled image to be the raster.
-            tiledImage.setData( raster );
+            
+            // Read 1 strip of tiles at time
+            int readSize = 
+                    params.getBytesPerLine() * TILE_HEIGHT * 8 / params.getDepth();
+            short[] data = new short[readSize];
+            DataBufferUShort db = new DataBufferUShort( data, readSize );
+            SampleModel tileSampleModel =
+                    RasterFactory.createPixelInterleavedSampleModel( 
+                    DataBuffer.TYPE_USHORT,
+                    TILE_WIDTH, TILE_HEIGHT, 
+                    3, 3 * TILE_WIDTH, new int[]{0, 1, 2} );
+            ColorModel tileColorModel = PlanarImage.createColorModel( tileSampleModel );
+            TiledImage tiledImage = 
+                    new TiledImage( 0, 0, 
+                    params.getPixelsPerLine(), params.getLines(), 
+                    0, 0, tileSampleModel, tileColorModel );
+
+            SampleModel scanSampleModel =
+                    RasterFactory.createPixelInterleavedSampleModel( 
+                    DataBuffer.TYPE_USHORT,
+                    params.getPixelsPerLine(), TILE_HEIGHT, 
+                    3, 3 * params.getPixelsPerLine(), new int[]{0, 1, 2} );
+            
+            int line = 0;
+            while ( line < params.getLines() ) {
+                int linesLeft = params.getLines() - line;
+                int samplesLeft = linesLeft * params.getBytesPerLine() * 8 / params.getDepth();
+                dev.read( data, Math.min( data.length, samplesLeft ) );
+                Raster raster = 
+                        RasterFactory.createWritableRaster( scanSampleModel, db,
+                        new Point( 0, line ) );
+                tiledImage.setData( raster );
+                line += TILE_HEIGHT;
+            }
             return tiledImage;
 
         } catch ( SaneException e ) {

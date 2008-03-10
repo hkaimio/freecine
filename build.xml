@@ -316,7 +316,7 @@
 <target name="run" depends="dist" description="Run Moviescan">
     <java fork="true" classname="fi.kaimio.moviescan.SplitScan">
         <!-- Use large enough heap to fit also big images -->
-        <jvmarg value="-Xmx2048M"/>
+        <jvmarg value="-Xmx${heap.max_size}M"/>
         <jvmarg value="-Djava.library.path=${jlibnxt.path}"/>
         <!-- jvmarg value="${run.jvmargs}"/>-->
         <classpath>
@@ -333,6 +333,7 @@
     </nbjpdastart>
     <java fork="true" classname="fi.kaimio.moviescan.SplitScan">
         <jvmarg value="-Xmx${heap.max_size}M"/>
+        <jvmarg value="-Djava.library.path=${jlibnxt.path}"/>
         <!--<jvmarg value="-XX:+PrintGCDetails"/>-->
         <jvmarg value="${run.jvmargs}"/>
         <jvmarg value="-Xdebug"/>

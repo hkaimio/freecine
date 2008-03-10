@@ -211,11 +211,29 @@ public class SaneDevice {
         }
     }
 
+    /**
+     Read data from scanner as 16 bit samples. Reading continues until the give 
+     array is filled.
+     
+     @param data Array in which the samples are stored
+     @throws fi.kaimio.sane.SaneException If an error occurs during reading
+     */
     public void read( short[] data ) throws SaneException {
+        read( data, data.length );
+    }
+    
+    /**
+     Read data from scanner as 16 bit samples. 
+     
+     @param data Array in which the samples are stored
+     @param sampelsToRead Number of samples to read
+     @throws fi.kaimio.sane.SaneException If an error occurs during reading
+     */
+    public void read( short[] data, int samplesToRead ) throws SaneException {
         int pos = 0;
         short[] arr = new short[16636];
         Buffer b = ShortBuffer.wrap( arr, 0, arr.length );
-        while ( pos < data.length ) {
+        while ( pos < samplesToRead ) {
             int readSize = Math.min( 32752, 2 * (data.length - pos) );
             
             IntByReference bytesRead = new IntByReference();
