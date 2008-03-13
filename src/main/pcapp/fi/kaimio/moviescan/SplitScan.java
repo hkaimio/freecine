@@ -592,11 +592,18 @@ public class SplitScan {
      */
     private static void saveImage( RenderedImage img, File f ) {
         // Find a writer for that file extensions
-        ImageWriter writer = null;
-        Iterator iter = ImageIO.getImageWritersByFormatName( "TIFF" );
-        if ( iter.hasNext() ) {
-            writer = (ImageWriter) iter.next();
+        // Try to determine the file type based on extension
+        String ftype = "jpg";
+        String imageFname = f.getName();
+        int extIndex = imageFname.lastIndexOf( "." ) + 1;
+        if ( extIndex > 0 ) {
+            ftype = imageFname.substring( extIndex );
         }
+
+        ImageWriter writer = null;
+        Iterator iter = ImageIO.getImageWritersBySuffix( ftype );
+        writer = (ImageWriter) iter.next();
+
         if ( writer != null ) {
             ImageOutputStream ios = null;
             try {
@@ -849,21 +856,23 @@ public class SplitScan {
             if ( maskImg.getWidth() > maskImg.getHeight() ) {
                 maskImg = t.getRotatedImage( maskImg );
             }
-
-            t.houghTransform( maskImg );
-            t.filterPerforations();
-            long analysisTime = System.currentTimeMillis() - startTime;
-            System.out.println( "Image analyzed in " + ((double) analysisTime) / 1000.0 );
+            ScanStrip s = new ScanStrip( (RenderedOp) img );
             String outTmpl = String.format( "tmp/testframe_%04d_%%02d.png", scanNum );
-            System.out.printf("file name templace %s\n", outTmpl );
-            t.fnameTmpl = outTmpl;
-            t.saveFrames( img, outTmpl );
-            scanImg.dispose();
+            int frameCount = s.getFrameCount();
+            for ( int n = 0 ; n < frameCount ; n++ ) {
+                try {
+                RenderedImage frame = s.getFrame(n);
+                File f = new File( String.format( outTmpl, n) );
+                System.out.println( "Saving frame " + f.getPath() );
+                saveImage(frame, f);
+                } catch ( Exception e ) {
+                    System.out.println( "Error saving frame " + n + ": " + e.getMessage() );
+                }
+            }
+            s.dispose();
             System.gc();
             System.gc();
             System.gc();
-            long saveTime = System.currentTimeMillis() - analysisTime - startTime;
-            System.out.println( "Images saved in " + ((double) saveTime) / 1000.0 );
             try {
                 moveFilm( mover );
               

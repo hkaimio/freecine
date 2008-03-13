@@ -9,11 +9,12 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- *
- * @author harri
+ Series of film (possible) perforations found from a scanned film strip. This 
+ class includes methods of estimating quality of the series candidate as well as 
+ for inter/extrapolating perforations missing from the series.
  */
 class PerforationSeries {
-    // Y coordinate of last performation
+    // Y coordinate of last performation added to the series
     int lastY = -1;
     // X coordinate of last performation
     int lastX = -1;
@@ -26,8 +27,15 @@ class PerforationSeries {
     
     /**
      Assumed distance between perforation points in pixels
+     TODO: This is now defined in several places
      */
     static private int PERF_DISTANCE = 800;
+    
+    /**
+     Minimum number of perforations expected in a scan- if it is lower then the 
+     quality function is decreased.
+     TODO: This should come directly from the scan strip.
+     */
     static private int MIN_PERFORATION_COUNT = 30;
     
     /**
@@ -43,6 +51,14 @@ class PerforationSeries {
     List <Perforation> perforations = 
             new ArrayList<Perforation>();
     
+    /**
+     Add a perforation to the series if it fits. Perforation is considered a fit 
+     if it is at the right distance (multiple of the distance between perforations)
+     from the previous one.
+     
+     @param p The perforation that may be added
+     @return true if the perforation fits, false otherwise.
+     */
     public boolean addIfFits( Perforation p ) {
         boolean isFit = false;
         if ( perforations.size() == 0 ) {
@@ -80,6 +96,16 @@ class PerforationSeries {
         
     }
     
+    /**
+     Get a quality (actually error) function measuring the "quality" of the 
+     series. The quality function is heuristic, based mostly on
+     <ul>
+     <li>Number of perforations missing from the series (in beginning, middle or 
+     at the end</li>
+     <li>Maximum second derivate of the perforation coordinates</li>
+     </ul>
+     @return The quality of the series, smaller is better (0 is the best)
+     */
     public int getQuality() {
         
         int missesAtEnd = 0;
@@ -100,6 +126,11 @@ class PerforationSeries {
         return copy[copy.length >> 1];        
     }
     
+    /**
+     Get the perforation series, smoother and with interpolated missing frames
+     @param maxY Maximum Y coordinate of the scanned strip
+     @return List of perforations
+     */
     public List<Perforation> getPerforations( int maxY ) {
         List<Perforation> ret = new ArrayList<Perforation>();
         Perforation lastPerf = null;
