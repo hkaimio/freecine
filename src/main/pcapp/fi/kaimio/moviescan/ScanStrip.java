@@ -27,6 +27,9 @@ import javax.media.jai.operator.AffineDescriptor;
 import javax.media.jai.operator.ConvolveDescriptor;
 import javax.media.jai.operator.CropDescriptor;
 import javax.media.jai.operator.FormatDescriptor;
+import javax.xml.transform.sax.TransformerHandler;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.AttributesImpl;
 
 /**
  ScanStrip represents strip of film scanned at once. It provides methods for 
@@ -36,6 +39,8 @@ import javax.media.jai.operator.FormatDescriptor;
 public class ScanStrip {
     
     PlanarImage stripImage;
+    
+    int imageOrientation = 0;
 
     /**
      Height of a single scanned frame
@@ -112,6 +117,10 @@ public class ScanStrip {
     public ScanStrip( PlanarImage img ) {
         stripImage = img;
     }
+
+    public ScanStrip() {
+        stripImage = null;
+    }
     
     public int getFrameCount() {
         if ( perforations == null ) {
@@ -159,6 +168,55 @@ public class ScanStrip {
     }
 
     /**
+     Add a perforation to the end of perforation series
+     
+     @param x X coordiante of the perforation
+     @param y Y coordinate of the perforation
+     */
+    public void addPerforation( int x, int y ) {
+        System.out.printf( "addPerforation %d, %d\n", x, y);
+        if (perforations == null ) {
+            perforations = new ArrayList<Perforation>();
+        }
+        Perforation p = new Perforation( x, y );
+        perforations.add( p );
+        
+    }
+    
+    /**
+     Set the location of bnth perforation
+     @param n Number of the perforation to set
+     @param x New X coordiante
+     @param y New Y coordinate
+     */
+    public void setPerforation( int n, int x, int y ) {
+        perforations.set( n, new Perforation( x, y ) );
+    }
+    
+    /**
+     Get location of a perforation
+     @param n Order number of the perofration hole
+     @return 
+     */
+    public Perforation getPerforation( int n ) {
+        if (perforations == null ) {
+            findPerforations();
+        }
+        return perforations.get( n );
+    }
+    
+    public int getPerforationCount() {
+        if (perforations == null ) {
+            findPerforations();
+        }
+        return perforations.size();
+    }
+    
+    public List<Perforation> getPerforations() {
+        return perforations;
+    }
+
+    /**
      Calculate the affine transform from scanStrip to a single frame (frame 
      rotated to straight position, top left corner translated to (0,0)
      @param frame
@@ -186,6 +244,10 @@ public class ScanStrip {
          System.out.println( String.format( "frame %d: (%d, %d), rot %f", 
                  frame,perforations.get(frame).x, -perforations.get(frame).y, rot ));         
          return xform;
+    }
+
+    void setOrientation( int i ) {
+        imageOrientation = i;
     }
     
     private void findPerforations() {
@@ -461,7 +523,7 @@ public class ScanStrip {
       
         /*
          Create candidate series from the perforations and select the one that 
-         looks best
+         looks best77
          */
         List<PerforationSeries> perfSeries = new ArrayList<PerforationSeries>();
         PerforationSeries best = null;
@@ -496,5 +558,46 @@ public class ScanStrip {
         perforations =  best.getPerforations( stripImage.getHeight() );
         System.out.println( "" + perforations.size() + " frames found" );
     }
+
+    public void writeXml( TransformerHandler hd ) throws SAXException {
+        if ( perforations == null ) {
+            findPerforations();
+        }
+
+        AttributesImpl atts = new AttributesImpl();
+        atts.addAttribute("", "", "orientation", "CDATA", "0");
+        hd.startElement( "", "", "scan", atts );
+        atts.clear();
+        hd.startElement( "", "", "perforations", atts );
+        for ( Perforation p: perforations ) {
+            atts.addAttribute("", "", "x", "CDATA", Integer.toString( p.x ));
+            atts.addAttribute("", "", "y", "CDATA", Integer.toString( p.y ));
+            hd.startElement("", "", "perforation", atts );
+            hd.endElement("", "", "perforation" );
+        }
+        hd.endElement( "", "", "perforations" );
+        hd.endElement("", "", "scan");
+        
+        hd.endDocument();
+    }
     
+    @Override
+    public boolean equals( Object o ) {
+        if ( o instanceof ScanStrip ) {
+            ScanStrip s = (ScanStrip) o;
+            if ( this.perforations.size() != s.perforations.size() ) {
+                return false;
+            }
+
+            for ( int n = 0; n < perforations.size(); n++ ) {
+                Perforation p = perforations.get( n );
+                Perforation p2 = s.perforations.get( n );
+                if ( p.x != p2.x || p.y != p2.y ) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
 }

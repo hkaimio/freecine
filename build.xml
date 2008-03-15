@@ -12,10 +12,12 @@
 <property name="src-common" location="src/main/common"/>
 <property name="src-pcapp" location="src/main/pcapp"/>
 <property name="src-nxj" location="src/main/nxj"/>
+<property name="src-test" location="src/test/pcapp"/>
 <property name="build" location="build"/>
 <property name="build-pccommon" location="${build}/pc/common"/>
 <property name="build-pcapp" location="${build}/pc/pcapp"/>
 <property name="build-nxj" location="${build}/nxj"/>
+<property name="build-test" location="${build}/test"/>
 <property name="dist"  location="dist"/>
 <property name="lib"  location="lib"/>
 <property name="basedir" location="."/>
@@ -40,6 +42,13 @@
     <pathelement path="src/main/resources"/>
 </path>
 
+<path id="test.class.path">
+    <path refid="project.class.path"/>
+    <pathelement path="${project.class.path}"/>
+    <pathelement location="${build-test}"/>
+    <pathelement location="${lib}/test/testng.jar"/>
+</path>
+
 <path id="debug.sourcepath" >
     <pathelement path="${src-common}"/>
     <pathelement path="src/test/java"/>
@@ -55,19 +64,8 @@
     <mkdir dir="${build-pccommon}"/>
     <mkdir dir="${build-pcapp}"/>
     <mkdir dir="${build-nxj}"/>
-    
-    <!--
-    <copy file="conf/buildinfo.template.properties" 
-	    tofile="conf/buildinfo.properties"
-	    overwrite="true">
-        <filterset>
-            <filter token="svnrevision" value="${svnrevision}"/>
-	    <filter token="svn.info.url" value="${svn.info.url}"/>
-	    <filter token="build.time" value="${DSTAMP}_${TSTAMP}"/>
-	    <filter token="build.user" value="${user.name}"/>
-	</filterset>
-     </copy>
-     -->
+    <mkdir dir="${build-test}"/>
+
     <property file="conf/buildinfo.properties"/>   
 </target>
 
@@ -200,38 +198,38 @@
     
 </target>
 
-<target name="testng" depends="dist" description="TestNG test">
-    <taskdef  resource="testngtasks" classpath="lib/testng.jar"/>
-    <testng outputDir="${reports.test}/testresults"
-            haltOnFailure="true" verbose="2">
-        <jvmarg value="${run.jvmargs}"/>
-        <jvmarg value="-Xdebug"/>
-        <jvmarg value="-Xnoagent"/>
-        <jvmarg value="-Djava.compiler=none"/>
-        <jvmarg value="-Dbasedir=${basedir}"/>
-        
-        <jvmarg value="-Xrunjdwp:transport=dt_socket,address=${jpda.address}"/>                
+<target name="-compile-test" depends="dist" description="Compile test cases">
+    <!-- Compile the java code from ${src} into ${build} -->
+    <javac destdir="${build-test}" debug="on">
+        <src path="${src-test}"/>
         <classpath>
             <path refid="project.class.path"/>
-            <pathelement location="${build.dir}"/>
-            <pathelement location="${conf.dir}"/>
+            <pathelement location="lib/test/testng.jar"/>
+            
         </classpath>
-        
-        <classfileset dir="${build-pcapp}"> 
-            <include name="**/Test**.class"/>
+    </javac>
+</target>
+
+<target name="testng" depends="-compile-test,dist" description="TestNG test">
+    <taskdef  resource="testngtasks" classpath="lib/test/testng.jar"/>
+    
+    <testng outputDir="${reports.test}/testresults"
+            haltOnFailure="false" verbose="2" classpathref="test.class.path">
+        <classfileset dir="${build-test}"> 
+            <include name="**/**.class"/>
         </classfileset>
     </testng>         
 </target>
 
-<target name="testng.debug.single" depends="dist" description="TestNG debug single file">
-    <taskdef  resource="testngtasks" classpath="lib/testng.jar"/>
+<target name="testng.debug.single" depends="-compile-test,dist" description="TestNG debug single file">
+    <taskdef  resource="testngtasks" classpath="lib/test/testng.jar"/>
     <nbjpdastart name="${classname}" addressproperty="jpda.address" transport="dt_socket">
         <classpath refid="project.class.path"/>
         <sourcepath refid="debug.sourcepath"/> 
     </nbjpdastart>
     <echo message="selected_file: ${selected_file}"/>
     <testng outputDir="${reports.test}/testresults"
-            haltOnFailure="true" verbose="2">
+            haltOnFailure="true" verbose="2" classpathref="test.class.path">
         <jvmarg value="${run.jvmargs}"/>
         <jvmarg value="-Xdebug"/>
         <jvmarg value="-Xnoagent"/>
@@ -239,13 +237,9 @@
         <jvmarg value="-Dbasedir=${basedir}"/>
         
         <jvmarg value="-Xrunjdwp:transport=dt_socket,address=${jpda.address}"/>                
-        <classpath>
-            <path refid="project.class.path"/>
-            <pathelement location="${build.dir}"/>
-            <pathelement location="${conf.dir}"/>
-        </classpath>
+
         
-        <classfileset dir="build"> 
+        <classfileset dir="${build-test}"> 
             <include name="${selected_file}.class"/>
         </classfileset>
     </testng>         

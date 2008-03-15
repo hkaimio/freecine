@@ -75,12 +75,20 @@ import javax.media.jai.operator.CropDescriptor;
 import javax.media.jai.operator.FormatDescriptor;
 import javax.media.jai.operator.TransposeDescriptor;
 import javax.media.jai.operator.TransposeDescriptor;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.transform.sax.SAXTransformerFactory;
+import javax.xml.transform.sax.TransformerHandler;
+import javax.xml.transform.stream.StreamResult;
+import org.xml.sax.SAXException;
 
 /**
  *
  * @author harri
  */
 public class SplitScan {
+
     private boolean debug = false;
 
     static Logger log = Logger.getLogger( SplitScan.class.getName() );
@@ -857,6 +865,7 @@ public class SplitScan {
                 maskImg = t.getRotatedImage( maskImg );
             }
             ScanStrip s = new ScanStrip( (RenderedOp) img );
+            saveStripInfo( s, new File( "scan_" + scanNum + ".xml" ) );
             String outTmpl = String.format( "tmp/testframe_%04d_%%02d.png", scanNum );
             int frameCount = s.getFrameCount();
             for ( int n = 0 ; n < frameCount ; n++ ) {
@@ -960,4 +969,24 @@ public class SplitScan {
         }
         return null;
     }
+    
+
+    private static void saveStripInfo( ScanStrip s, File file ) {
+        try {
+            StreamResult streamResult = new StreamResult( file );
+            SAXTransformerFactory tf = (SAXTransformerFactory) SAXTransformerFactory.newInstance();
+            TransformerHandler hd = tf.newTransformerHandler();
+            Transformer serializer = hd.getTransformer();
+            serializer.setOutputProperty( OutputKeys.ENCODING, "ISO-8859-1" );
+            serializer.setOutputProperty( OutputKeys.INDENT, "yes" );
+            hd.setResult( streamResult );
+            hd.startDocument();
+            s.writeXml( hd );
+            hd.endDocument();
+        } catch ( SAXException ex ) {
+            Logger.getLogger( SplitScan.class.getName() ).log( Level.SEVERE, null, ex );
+        } catch ( TransformerConfigurationException ex ) {
+            Logger.getLogger( SplitScan.class.getName() ).log( Level.SEVERE, null, ex );
+        }
+    }    
 }

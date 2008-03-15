@@ -13,4 +13,9 @@ public class Perforation {
     
     public Perforation() {
     }
+
+    Perforation( int x, int y ) {
+        this.x = x;
+        this.y = y;
+    }
 }
