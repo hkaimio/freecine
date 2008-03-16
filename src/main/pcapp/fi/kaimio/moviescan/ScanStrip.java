@@ -122,6 +122,26 @@ public class ScanStrip {
         stripImage = null;
     }
     
+    String name;
+    
+    /**
+     Set the name (in practice the name in which inforation about this strip is 
+     saved) of this strip.
+     
+     @param name Name of the string
+     */
+    public void setName( String name ) {
+        this.name = name;
+    }
+
+    /**
+     Get the name of this strip
+     @return
+     */
+    public String getName(  ) {
+        return name;
+    }
+    
     public int getFrameCount() {
         if ( perforations == null ) {
             findPerforations();
