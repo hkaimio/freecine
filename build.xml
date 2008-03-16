@@ -51,7 +51,8 @@
 
 <path id="debug.sourcepath" >
     <pathelement path="${src-common}"/>
-    <pathelement path="src/test/java"/>
+    <pathelement path="${src-pcapp}"/>
+    <pathelement path="${src-test}"/>
 </path>
 
 <property environment="env"/>
@@ -230,7 +231,6 @@
     <echo message="selected_file: ${selected_file}"/>
     <testng outputDir="${reports.test}/testresults"
             haltOnFailure="true" verbose="2" classpathref="test.class.path">
-        <jvmarg value="${run.jvmargs}"/>
         <jvmarg value="-Xdebug"/>
         <jvmarg value="-Xnoagent"/>
         <jvmarg value="-Djava.compiler=none"/>
