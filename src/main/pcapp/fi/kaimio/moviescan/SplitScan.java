@@ -790,6 +790,9 @@ public class SplitScan {
      * @param args the command line arguments
      */
     public static void main( String[] args ) {
+        File projectDir = new File( "testproject" );
+        projectDir.mkdirs();
+        Project prj = new Project(projectDir);
         parseArgs( args );
         IntByReference version = new IntByReference();
         Sane sane = Sane.INSTANCE;
@@ -852,7 +855,6 @@ public class SplitScan {
         
             RenderedImage img = scanImage( dev );
             System.out.println( "Saving scan" );
-            saveImage( img, new File( "scan_" + scanNum + ".tif" ) );
             TiledImage scanImg = (TiledImage) img;
             System.out.println( "done, width " + img.getWidth() + " height " + img.getHeight() );
             RenderedImage maskImg = img;
@@ -865,7 +867,12 @@ public class SplitScan {
                 maskImg = t.getRotatedImage( maskImg );
             }
             ScanStrip s = new ScanStrip( (RenderedOp) img );
-            saveStripInfo( s, new File( "scan_" + scanNum + ".xml" ) );
+            prj.addScanStrip( s );
+            try {
+            prj.save();
+            } catch ( IOException e ) {
+                System.err.println( e.getMessage() );
+            }
             String outTmpl = String.format( "tmp/testframe_%04d_%%02d.png", scanNum );
             int frameCount = s.getFrameCount();
             for ( int n = 0 ; n < frameCount ; n++ ) {
