@@ -88,6 +88,7 @@ import org.xml.sax.SAXException;
  * @author harri
  */
 public class SplitScan {
+    private static String projectDirName = "/home/harri/s8/tuhkimo";
 
     private boolean debug = false;
 
@@ -757,7 +758,7 @@ public class SplitScan {
     }
     
     public static void usage() {
-        System.err.println( "Usage: splitscan [-d|--debug] -m maskfile -o outfile_template infile" );
+        System.err.println( "Usage: splitscan [-d|--debug] [-p projectdir] -m maskfile -o outfile_template infile" );
     }
     
     public static void parseArgs( String args[] ) {
@@ -766,6 +767,9 @@ public class SplitScan {
             if ( args[n].equals( "-d" ) || args[n].equals( "--debug" ) ) {
                 isDebug = true;
                 debugDir = args[n+1];
+                n++;
+            } else if ( args[n].equals( "-p" ) || args[n].equals( "--project" ) ) {
+                projectDirName = args[n+1];
                 n++;
             } else if ( args[n].equals( "-o" ) ) {
                 outTmpl = args[n+1];
@@ -790,7 +794,7 @@ public class SplitScan {
      * @param args the command line arguments
      */
     public static void main( String[] args ) {
-        File projectDir = new File( "testproject" );
+        File projectDir = new File( projectDirName );
         projectDir.mkdirs();
         Project prj = new Project(projectDir);
         parseArgs( args );
@@ -832,14 +836,23 @@ public class SplitScan {
             dev.setOption( "br-y", new FixedPointNumber( 55 << 16 ) );
             dev.setOption( "resolution", 4800 );
             dev.setOption( "source", "Transparency Unit" );
-
+            
+            // Set gamma correction
+            dev.setOption("gamma-correction", "User defined");
+            int[] gammaTable = new int[256];
+            for ( int n = 0; n < gammaTable.length ; n++ ) {
+                gammaTable[n] = n;
+            }
+            dev.setOption("red-gamma-table", gammaTable );
+            dev.setOption("blue-gamma-table", gammaTable );
+            dev.setOption("green-gamma-table", gammaTable );
         } catch ( SaneException e ) {
             System.out.println( "Error initializing Sane: " + e.getMessage() );
             System.exit( 1 );
         }
 
         // Initialize film mover
-        FilmMover mover = null; // new NxjFilmMover();
+        FilmMover mover = new NxjFilmMover();
         System.out.println( "Initialized film mover" );
         
         log.setLevel( Level.FINE );
@@ -873,6 +886,7 @@ public class SplitScan {
             } catch ( IOException e ) {
                 System.err.println( e.getMessage() );
             }
+            /*
             String outTmpl = String.format( "tmp/testframe_%04d_%%02d.png", scanNum );
             int frameCount = s.getFrameCount();
             for ( int n = 0 ; n < frameCount ; n++ ) {
@@ -885,6 +899,7 @@ public class SplitScan {
                     System.out.println( "Error saving frame " + n + ": " + e.getMessage() );
                 }
             }
+             */
             s.dispose();
             System.gc();
             System.gc();

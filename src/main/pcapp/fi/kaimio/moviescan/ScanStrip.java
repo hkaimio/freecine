@@ -586,6 +586,7 @@ public class ScanStrip {
 
         AttributesImpl atts = new AttributesImpl();
         atts.addAttribute("", "", "orientation", "CDATA", "0");
+        atts.addAttribute("", "", "gamma", "CDATA", "1.0" );
         hd.startElement( "", "", "scan", atts );
         atts.clear();
         hd.startElement( "", "", "perforations", atts );
@@ -619,5 +620,14 @@ public class ScanStrip {
             return true;
         }
         return false;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 67 * hash + this.imageOrientation;
+        hash = 67 * hash + (this.perforations != null ? this.perforations.hashCode() : 0);
+        hash = 67 * hash + (this.name != null ? this.name.hashCode() : 0);
+        return hash;
     }
 }
