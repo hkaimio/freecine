@@ -5,6 +5,7 @@
 
 package fi.kaimio.moviescan;
 
+import static org.testng.AssertJUnit.*;
 import java.io.File;
 import java.io.IOException;
 import org.apache.commons.digester.Digester;
@@ -37,7 +38,10 @@ public class TestProject {
         
         Digester d = new Digester();
         d.addRuleSet( new ProjectRuleSet(""));
+        d.push( "prj_dir_stack", prjdir );
         Project prj2 = (Project) d.parse( new File( prjdir, "project.xml" ) );
+        assertEquals( prjdir, prj2.getProjectDir() );
+               
     }
 
 }

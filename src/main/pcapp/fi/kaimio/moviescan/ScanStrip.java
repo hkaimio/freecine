@@ -14,6 +14,8 @@ import java.awt.image.DataBufferByte;
 import java.awt.image.Raster;
 import java.awt.image.RenderedImage;
 import java.awt.image.SampleModel;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import javax.media.jai.Interpolation;
@@ -28,6 +30,7 @@ import javax.media.jai.operator.ConvolveDescriptor;
 import javax.media.jai.operator.CropDescriptor;
 import javax.media.jai.operator.FormatDescriptor;
 import javax.xml.transform.sax.TransformerHandler;
+import org.apache.commons.digester.Digester;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
@@ -601,6 +604,24 @@ public class ScanStrip {
         
         hd.endDocument();
     }
+    
+    /**
+     Load a strip from file
+     @param f The xml file that describes the strip
+     @return
+     */
+    static public ScanStrip loadStrip( File f ) {
+        ScanStrip strip = null;
+        Digester d = new Digester();
+        d.addRuleSet( new ScanStripRuleSet( "" ) );
+        try {
+            strip = (ScanStrip) d.parse( f );
+        } catch ( Exception e ) {
+
+        }
+        return strip;
+    }
+
     
     @Override
     public boolean equals( Object o ) {

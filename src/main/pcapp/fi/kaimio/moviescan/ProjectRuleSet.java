@@ -12,7 +12,10 @@ import org.apache.commons.digester.RuleSetBase;
 import org.xml.sax.Attributes;
 
 /**
-  Digester rules for parsing a Project object from XML file
+  Digester rules for parsing a Project object from XML file.
+ <p>
+ The project directory is expected to be stored into Digester stack with name 
+ "prj_dir_stack".
  */
 public class ProjectRuleSet  extends RuleSetBase{
     private String prefix;
@@ -30,8 +33,11 @@ public class ProjectRuleSet  extends RuleSetBase{
         Digester digester;
         
         public Object createObject( Attributes attr ) throws Exception {
-            Project prj = new Project( new File( "" ) );
-            // digester.push( "project_stack", prj );
+            File prjdir = (File) digester.peek( "prj_dir_stack" );
+            if ( prjdir == null ) {
+                prjdir = new File( "." );
+            }
+            Project prj = new Project( prjdir );
             return prj;
         }
 

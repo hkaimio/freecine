@@ -90,6 +90,8 @@ import org.xml.sax.SAXException;
 public class SplitScan {
     private static String projectDirName = "/home/harri/s8/tuhkimo";
 
+
+
     private boolean debug = false;
 
     static Logger log = Logger.getLogger( SplitScan.class.getName() );
@@ -796,60 +798,9 @@ public class SplitScan {
     public static void main( String[] args ) {
         File projectDir = new File( projectDirName );
         projectDir.mkdirs();
-        Project prj = new Project(projectDir);
+        Project prj = Project.getProject(projectDir);
         parseArgs( args );
-        IntByReference version = new IntByReference();
-        Sane sane = Sane.INSTANCE;
-        int ret = sane.sane_init( version, null );
-        System.out.println( "Sane init returner " + ret );
-        System.out.println( "Sane version = " + version.getValue() );
-
-        // Find the right scanner
-        PointerByReference dList = new PointerByReference();
-        Pointer devPtr = null;
-        SaneDevice dev = null;
-        ret = sane.sane_get_devices( dList, true );
-        int offset = 0;
-        try {
-            while ( (devPtr = dList.getValue().getPointer( offset )) != null ) {
-                offset += Pointer.SIZE;
-                SaneDeviceDescriptor d = new SaneDeviceDescriptor( devPtr );
-
-                System.out.println( "Scanner " + d.name );
-                if ( d.name.startsWith( "epson2" ) ) {
-                    System.out.println( "Using device" + d.name );
-                    dev = new SaneDevice( d.name );
-                    break;
-                }
-
-            }
-            if ( dev == null ) {
-                System.err.println( "No scanner found" );
-                System.exit(1);
-            }
-                
-            dev.setOption( "mode", "Color" );
-            dev.setOption( "depth", 16 );
-            dev.setOption( "tl-x", new FixedPointNumber( 30 << 16 ) );
-            dev.setOption( "tl-y", new FixedPointNumber( 48 << 16 ) );
-            dev.setOption( "br-x", new FixedPointNumber( 190 << 16 ) );
-            dev.setOption( "br-y", new FixedPointNumber( 55 << 16 ) );
-            dev.setOption( "resolution", 4800 );
-            dev.setOption( "source", "Transparency Unit" );
-            
-            // Set gamma correction
-            dev.setOption("gamma-correction", "User defined");
-            int[] gammaTable = new int[256];
-            for ( int n = 0; n < gammaTable.length ; n++ ) {
-                gammaTable[n] = n;
-            }
-            dev.setOption("red-gamma-table", gammaTable );
-            dev.setOption("blue-gamma-table", gammaTable );
-            dev.setOption("green-gamma-table", gammaTable );
-        } catch ( SaneException e ) {
-            System.out.println( "Error initializing Sane: " + e.getMessage() );
-            System.exit( 1 );
-        }
+        SaneDevice dev = initScanner();
 
         // Initialize film mover
         FilmMover mover = new NxjFilmMover();
@@ -939,6 +890,68 @@ public class SplitScan {
      Height of the tiles used for storing the scanned image
      */
     static final int TILE_HEIGHT = 256;
+    
+    /**
+     Initialize the scanner
+     
+     @return SaneDevice descriptor for the initialized scanner or <code>null
+     </code> if the scanner could not be found/opened.
+     */
+    private static SaneDevice initScanner() {
+        IntByReference version = new IntByReference();
+        Sane sane = Sane.INSTANCE;
+        int ret = sane.sane_init( version, null );
+        System.out.println( "Sane init returner " + ret );
+        System.out.println( "Sane version = " + version.getValue() );
+
+        // Find the right scanner
+        PointerByReference dList = new PointerByReference();
+        Pointer devPtr = null;
+        SaneDevice dev = null;
+        ret = sane.sane_get_devices( dList, true );
+        int offset = 0;
+        try {
+            while ( (devPtr = dList.getValue().getPointer( offset )) != null ) {
+                offset += Pointer.SIZE;
+                SaneDeviceDescriptor d = new SaneDeviceDescriptor( devPtr );
+
+                System.out.println( "Scanner " + d.name );
+                if ( d.name.startsWith( "epson2" ) ) {
+                    System.out.println( "Using device" + d.name );
+                    dev = new SaneDevice( d.name );
+                    break;
+                }
+            }
+            if ( dev == null ) {
+                System.err.println( "No scanner found" );
+                System.exit( 1 );
+            }
+
+            dev.setOption( "mode", "Color" );
+            dev.setOption( "depth", 16 );
+            dev.setOption( "tl-x", new FixedPointNumber( 30 << 16 ) );
+            dev.setOption( "tl-y", new FixedPointNumber( 48 << 16 ) );
+            dev.setOption( "br-x", new FixedPointNumber( 190 << 16 ) );
+            dev.setOption( "br-y", new FixedPointNumber( 55 << 16 ) );
+            dev.setOption( "resolution", 4800 );
+            dev.setOption( "source", "Transparency Unit" );
+
+            // Set gamma correction
+            dev.setOption( "gamma-correction", "User defined" );
+            int[] gammaTable = new int[256];
+            for ( int n = 0; n < gammaTable.length; n++ ) {
+                gammaTable[n] = n;
+            }
+            dev.setOption( "red-gamma-table", gammaTable );
+            dev.setOption( "blue-gamma-table", gammaTable );
+            dev.setOption( "green-gamma-table", gammaTable );
+        } catch ( SaneException e ) {
+            System.out.println( "Error initializing Sane: " + e.getMessage() );
+            System.exit( 1 );
+        }
+
+        return dev;
+    }
     
     /**
      Scan image and store it in TiledImage

@@ -24,6 +24,7 @@ import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.sax.SAXTransformerFactory;
 import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stream.StreamResult;
+import org.apache.commons.digester.Digester;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.xml.sax.SAXException;
@@ -55,6 +56,27 @@ public class Project {
     public Project( File dir ) {
         this.dir = dir;
         scene = new Scene();
+    }
+    
+    static public Project getProject( File dir ) {
+        File projectFile = new File( dir, "project.xml" );
+        Project ret = null;
+        if ( projectFile.exists() ) {
+            Digester d = new Digester();
+            d.push( "prj_dir_stack", dir );
+            d.addRuleSet( new ProjectRuleSet("" ));
+            try  {
+                ret =  (Project) d.parse(projectFile );
+            } catch ( IOException e ) {
+                log.error( "IO error reading " + projectFile.getPath() + ": " + e.getMessage() );
+            } catch ( SAXException e ) {
+                log.error( "Parse error reading " + projectFile.getPath() + ": " + e.getMessage() );                
+            }
+        } else {
+            dir.mkdirs();
+            ret = new Project( dir );
+        }
+        return ret;
     }
     
     /**
@@ -91,15 +113,34 @@ public class Project {
         if ( loadedStrips.containsKey( name ) ) {
             ret = loadedStrips.get( name );
         } else {
-            ret = new ScanStrip( );
-            loadedStrips.put(name, ret);
-            ret.setName(name);
+            File stripDescFile = new File( dir, "scan/" + name + ".xml" );
+            if ( stripDescFile.exists() ) {
+                ret = ScanStrip.loadStrip( stripDescFile );
+                loadedStrips.put( name, ret );
+                ret.setName(name);
+            } else {
+                ret = new ScanStrip();
+                loadedStrips.put( name, ret );
+                ret.setName( name );
+            }
         }
         return ret;
     }
 
     public void addScene( Scene s ) {
         scene = s;
+    }
+    
+    public Scene getScene() {
+        return scene;
+    }
+    
+    /**
+     Get the project directory
+     @return Project directory
+     */
+    public File getProjectDir()  {
+        return dir;
     }
     
     /**
