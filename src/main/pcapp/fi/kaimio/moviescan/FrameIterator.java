@@ -30,6 +30,12 @@ public class FrameIterator implements Iterator<RenderedImage> {
     
     
     int sceneFrame = -1;
+    
+    /**
+     Number of the frame that should be returned with the next() method. If 
+     negative, the frame currentFrame+1 is returned.
+     */
+    private int nextFrameNum = -1;
 
     /**
      Create a new iterator. This should not be called directly, use 
@@ -49,7 +55,12 @@ public class FrameIterator implements Iterator<RenderedImage> {
     }
 
     public RenderedImage next() {
-        sceneFrame++;
+        if ( nextFrameNum >= 0 ) {
+            sceneFrame = nextFrameNum;
+            nextFrameNum = -1;
+        } else {
+            sceneFrame++;
+        }
         ScanStrip nextStrip = currentScene.getFrameStrip( sceneFrame );
         if ( nextStrip != currentStrip ) {
             if ( currentStrip != null ) {
@@ -65,4 +76,11 @@ public class FrameIterator implements Iterator<RenderedImage> {
         throw new UnsupportedOperationException( "Not supported yet." );
     }
 
+    public int getCurrentFrameNum() {
+        return sceneFrame;
+    }
+    
+    public void setNextFrameNum( int n ) {
+        nextFrameNum = n;
+    }
 }
