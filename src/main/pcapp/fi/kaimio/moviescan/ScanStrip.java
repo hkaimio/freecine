@@ -5,6 +5,7 @@
 
 package fi.kaimio.moviescan;
 
+import com.sun.media.jai.operator.ImageReadDescriptor;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
@@ -15,9 +16,15 @@ import java.awt.image.Raster;
 import java.awt.image.RenderedImage;
 import java.awt.image.SampleModel;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReadParam;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.FileImageInputStream;
+import javax.imageio.stream.ImageInputStream;
 import javax.media.jai.Interpolation;
 import javax.media.jai.KernelJAI;
 import javax.media.jai.PlanarImage;
@@ -26,11 +33,15 @@ import javax.media.jai.RenderedOp;
 import javax.media.jai.iterator.RectIter;
 import javax.media.jai.iterator.RectIterFactory;
 import javax.media.jai.operator.AffineDescriptor;
+import javax.media.jai.operator.ConstantDescriptor;
 import javax.media.jai.operator.ConvolveDescriptor;
 import javax.media.jai.operator.CropDescriptor;
 import javax.media.jai.operator.FormatDescriptor;
+import javax.media.jai.operator.OverlayDescriptor;
 import javax.xml.transform.sax.TransformerHandler;
 import org.apache.commons.digester.Digester;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
@@ -40,6 +51,8 @@ import org.xml.sax.helpers.AttributesImpl;
  individual frames out of the scan.
  */
 public class ScanStrip {
+   
+    private static Log log = LogFactory.getLog( ScanStrip.class.getName() );
     
     PlanarImage stripImage;
     
@@ -145,11 +158,21 @@ public class ScanStrip {
         return name;
     }
     
+    File file;
+    
+    public void setFile( File f ) {
+        file = f;
+    }
+    
+    public File getFile() {
+        return file;
+    }
+    
     public int getFrameCount() {
         if ( perforations == null ) {
             findPerforations();
         }
-        return perforations.size();
+        return perforations.size()-2;
     }
     
     /**
@@ -164,9 +187,9 @@ public class ScanStrip {
         }
         
         // Calculate the top left corner from perforations
-        int tlx = (perforations.get( n - 1 ).y + perforations.get( n ).y) >> 1;
-        int tly = perforations.get( n - 1 ).x;
-        int w = Math.min( FRAME_WIDTH, stripImage.getWidth() - tly );
+//        int tlx = (perforations.get( n - 1 ).y + perforations.get( n ).y) >> 1;
+//        int tly = perforations.get( n - 1 ).x;
+//        int w = Math.min( FRAME_WIDTH, stripImage.getWidth() - tly );
         AffineTransform xform = getFrameXform( n );
         RenderedOp rotated = 
                 AffineDescriptor.create( stripImage, xform, 
@@ -176,9 +199,15 @@ public class ScanStrip {
         int miny = rotated.getMinY();
         int rw = rotated.getWidth();
         int rh = rotated.getHeight();
-        RenderedOp frame = 
-                CropDescriptor.create( rotated, (float) 0, (float) 0, 
-                (float) w, (float) FRAME_HEIGHT, null );
+        
+        RenderedOp background =
+                ConstantDescriptor.create( (float) FRAME_WIDTH,
+                (float) FRAME_HEIGHT, new Short[]{0, 0, 0}, null);
+        RenderedOp frame = OverlayDescriptor.create( background, rotated, null );
+        
+//        RenderedOp frame = 
+//                CropDescriptor.create( rotated, (float) 0, (float) 0, 
+//                (float) FRAME_WIDTH, (float) FRAME_HEIGHT, null );
         return frame;
     }
     
@@ -610,12 +639,13 @@ public class ScanStrip {
      @param f The xml file that describes the strip
      @return
      */
-    static public ScanStrip loadStrip( File f ) {
+    static public ScanStrip loadStrip( File descFile, File imgFile ) {
         ScanStrip strip = null;
         Digester d = new Digester();
         d.addRuleSet( new ScanStripRuleSet( "" ) );
         try {
-            strip = (ScanStrip) d.parse( f );
+            strip = (ScanStrip) d.parse( descFile );
+            strip.setFile(imgFile);
         } catch ( Exception e ) {
 
         }
@@ -650,5 +680,53 @@ public class ScanStrip {
         hash = 67 * hash + (this.perforations != null ? this.perforations.hashCode() : 0);
         hash = 67 * hash + (this.name != null ? this.name.hashCode() : 0);
         return hash;
+    }
+
+    int refCount = 0;
+    
+    public void releaseStripImage() {
+        refCount--;
+        if ( refCount == 0 ) {
+            stripImage.dispose();
+        }
+    }
+
+    /**
+     Inform that the image data will be needed by this object. If the image is
+      not available, load it from disk.
+     */
+    public void reserveStripImage() {
+        if ( refCount == 0 ) {
+            loadImage();
+        }
+        refCount++;
+
+    }
+
+    /**
+     Load the scan strip image from disk
+     */
+    private void loadImage() {
+        ImageReader reader;
+        try {
+//        PlanarImage img = JAI.create( "fileload", fname );
+            ImageInputStream istrm = new FileImageInputStream( file );
+            reader = ImageIO.getImageReadersByFormatName( "TIFF" ).next();
+            reader.setInput( istrm );
+            ImageReadParam param = reader.getDefaultReadParam();
+            // param.setSourceRegion( new Rectangle(0, 0, 1024, reader.getHeight(0 ) ) );
+//            ImageLayout layout = new ImageLayout();
+//            layout.setTileHeight(512);
+//            layout.setTileWidth(4096);
+//            RenderingHints hints = new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout);
+            stripImage = ImageReadDescriptor.create(istrm, 0, false, false, false, 
+                    null, null, param, reader, null );
+            // BufferedImage inImg = reader.read( 0, param );            
+        } catch ( FileNotFoundException ex ) {
+            System.out.println( ex.getMessage() );
+            log.error( "Strip file " + file + " not found", ex );
+        } catch ( IOException ex ) {
+            log.error( "IO error reading strip " + file + ": ", ex );
+        }
     }
 }

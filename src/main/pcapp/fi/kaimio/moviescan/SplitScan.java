@@ -800,6 +800,7 @@ public class SplitScan {
         projectDir.mkdirs();
         Project prj = Project.getProject(projectDir);
         parseArgs( args );
+        saveProjectFrames(prj);
         SaneDevice dev = initScanner();
 
         // Initialize film mover
@@ -1023,5 +1024,13 @@ public class SplitScan {
         } catch ( TransformerConfigurationException ex ) {
             Logger.getLogger( SplitScan.class.getName() ).log( Level.SEVERE, null, ex );
         }
-    }    
+    }  
+    
+    private static void saveProjectFrames( Project prj ) {
+        int n = 1;
+        for ( RenderedImage frame : prj ) {
+            saveImage(frame,  new File( String.format( "/tmp/frame_%05d.png", n ) ) );
+            n++;
+        }
+    }
 }

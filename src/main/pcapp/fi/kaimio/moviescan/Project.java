@@ -34,7 +34,7 @@ import org.xml.sax.helpers.AttributesImpl;
  Project object keeps strck of all inforation related the project (i.e. 
  information about scan strips and scenes
  */
-public class Project {
+public class Project implements Iterable<RenderedImage> {
 
     private static Log log = LogFactory.getLog( Project.class.getName() );
     /**
@@ -58,6 +58,16 @@ public class Project {
         scene = new Scene();
     }
     
+    /**
+     Get project object for given directory.
+     <p>
+     If dir is an existing directory with valid project.xml file in it, laod the 
+     project and return it. If there is no project in the directory, return a 
+     new empty project.
+     
+     @param dir Project directory
+     @return The project in directory or new project if no project exists there
+     */
     static public Project getProject( File dir ) {
         File projectFile = new File( dir, "project.xml" );
         Project ret = null;
@@ -114,8 +124,9 @@ public class Project {
             ret = loadedStrips.get( name );
         } else {
             File stripDescFile = new File( dir, "scan/" + name + ".xml" );
+            File stripImgFile = new File( dir, "scan/" + name + ".tif" );
             if ( stripDescFile.exists() ) {
-                ret = ScanStrip.loadStrip( stripDescFile );
+                ret = ScanStrip.loadStrip( stripDescFile, stripImgFile );
                 loadedStrips.put( name, ret );
                 ret.setName(name);
             } else {
@@ -142,6 +153,7 @@ public class Project {
     public File getProjectDir()  {
         return dir;
     }
+    
     
     /**
      Save the project info in project directory (in file project.xml)
@@ -257,6 +269,10 @@ public class Project {
         } catch ( TransformerConfigurationException ex ) {
             log.error( "Error saving " + file.getAbsolutePath() + ": " + ex.getMessage() );
         }
+    }
+
+    public Iterator<RenderedImage> iterator() {
+        return new FrameIterator( this );
     }
 
 }

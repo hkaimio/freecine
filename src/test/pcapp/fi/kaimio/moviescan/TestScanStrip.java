@@ -4,6 +4,7 @@
  */
 package fi.kaimio.moviescan;
 
+import java.awt.image.RenderedImage;
 import java.io.File;
 import java.io.IOException;
 import javax.xml.transform.OutputKeys;
@@ -69,5 +70,21 @@ public class TestScanStrip {
         p = sc.getPerforation(11);
         assertEquals( 100, p.x);
         assertEquals( 8900, p.y );
+    }
+    
+    @Test
+    public void testLoadStrip() throws IOException, SAXException {
+        File stripDesc = new File( "/home/harri/s8/tuhkimo/scan/scan_0002.xml" );
+        Digester d = new Digester();
+        d.addRuleSet( new ScanStripRuleSet( "" ) );
+        ScanStrip strip = (ScanStrip) d.parse( stripDesc );
+        
+        File imgFile = new File( stripDesc.getParentFile(), "scan_0002.tif" );
+        strip.setFile(imgFile);
+        
+        strip.reserveStripImage();
+        RenderedImage img = strip.getFrame( 2 );
+        strip.releaseStripImage();
+        img = strip.getFrame(7);
     }
 }

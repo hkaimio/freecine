@@ -17,7 +17,7 @@ import org.xml.sax.Attributes;
  The project directory is expected to be stored into Digester stack with name 
  "prj_dir_stack".
  */
-public class ProjectRuleSet  extends RuleSetBase{
+public class ProjectRuleSet extends RuleSetBase{
     private String prefix;
 
     public ProjectRuleSet( String prefix ) {
