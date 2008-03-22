@@ -44,6 +44,10 @@ public class MainWindow extends javax.swing.JFrame {
         goToFrameBtn = new javax.swing.JButton();
         nextFrameBtn = new javax.swing.JButton();
         framePane = new FrameView();
+        whiteSlider = new javax.swing.JSlider();
+        jLabel4 = new javax.swing.JLabel();
+        jLabel5 = new javax.swing.JLabel();
+        blackSlider = new javax.swing.JSlider();
         jMenuBar1 = new javax.swing.JMenuBar();
         jMenu1 = new javax.swing.JMenu();
         jMenu2 = new javax.swing.JMenu();
@@ -66,16 +70,38 @@ public class MainWindow extends javax.swing.JFrame {
             }
         });
 
+        framePane.setBorder(new javax.swing.border.MatteBorder(null));
+
         javax.swing.GroupLayout framePaneLayout = new javax.swing.GroupLayout(framePane);
         framePane.setLayout(framePaneLayout);
         framePaneLayout.setHorizontalGroup(
             framePaneLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 469, Short.MAX_VALUE)
+            .addGap(0, 445, Short.MAX_VALUE)
         );
         framePaneLayout.setVerticalGroup(
             framePaneLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGap(0, 337, Short.MAX_VALUE)
         );
+
+        whiteSlider.setMaximum(65535);
+        whiteSlider.setValue(65535);
+        whiteSlider.addChangeListener(new javax.swing.event.ChangeListener() {
+            public void stateChanged(javax.swing.event.ChangeEvent evt) {
+                whiteSliderStateChanged(evt);
+            }
+        });
+
+        jLabel4.setText("White");
+
+        jLabel5.setText("Black");
+
+        blackSlider.setMaximum(1000);
+        blackSlider.setValue(0);
+        blackSlider.addChangeListener(new javax.swing.event.ChangeListener() {
+            public void stateChanged(javax.swing.event.ChangeEvent evt) {
+                blackSliderStateChanged(evt);
+            }
+        });
 
         jMenu1.setText("File");
         jMenuBar1.add(jMenu1);
@@ -92,7 +118,14 @@ public class MainWindow extends javax.swing.JFrame {
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(framePane, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(framePane, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addComponent(jLabel4, javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(whiteSlider, javax.swing.GroupLayout.DEFAULT_SIZE, 246, Short.MAX_VALUE)
+                            .addComponent(jLabel5, javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(blackSlider, javax.swing.GroupLayout.DEFAULT_SIZE, 246, Short.MAX_VALUE)))
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(jLabel1)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -107,13 +140,23 @@ public class MainWindow extends javax.swing.JFrame {
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(framePane, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel1)
-                    .addComponent(goToFrameBtn)
-                    .addComponent(nextFrameBtn)
-                    .addComponent(frameNumField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(framePane, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(18, 18, 18)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel1)
+                            .addComponent(goToFrameBtn)
+                            .addComponent(nextFrameBtn)
+                            .addComponent(frameNumField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(jLabel4)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(whiteSlider, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jLabel5)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(blackSlider, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
@@ -139,6 +182,16 @@ public class MainWindow extends javax.swing.JFrame {
                     JOptionPane.ERROR_MESSAGE );
         }
     }//GEN-LAST:event_goToFrameBtnActionPerformed
+
+    private void whiteSliderStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_whiteSliderStateChanged
+        int val = whiteSlider.getValue();
+        ((FrameView) framePane).setWhite( val );
+    }//GEN-LAST:event_whiteSliderStateChanged
+
+    private void blackSliderStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_blackSliderStateChanged
+        int val = blackSlider.getValue();
+        ((FrameView) framePane).setBlack( val );
+}//GEN-LAST:event_blackSliderStateChanged
     
     /**
      @param args the command line arguments
@@ -152,14 +205,18 @@ public class MainWindow extends javax.swing.JFrame {
     }
     
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JSlider blackSlider;
     private javax.swing.JTextField frameNumField;
     private javax.swing.JPanel framePane;
     private javax.swing.JButton goToFrameBtn;
     private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel jLabel4;
+    private javax.swing.JLabel jLabel5;
     private javax.swing.JMenu jMenu1;
     private javax.swing.JMenu jMenu2;
     private javax.swing.JMenuBar jMenuBar1;
     private javax.swing.JButton nextFrameBtn;
+    private javax.swing.JSlider whiteSlider;
     // End of variables declaration//GEN-END:variables
     
 }

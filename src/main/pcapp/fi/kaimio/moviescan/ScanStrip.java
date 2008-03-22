@@ -172,13 +172,15 @@ public class ScanStrip {
     public File getFile() {
         return file;
     }
-    
+
     public int getFrameCount() {
         if ( perforations == null ) {
             findPerforations();
         }
         return perforations.size()-2;
     }
+    
+    
     
     /**
      Get the nth frame of the scan
@@ -739,4 +741,6 @@ public class ScanStrip {
             log.error( "IO error reading strip " + file + ": ", ex );
         }
     }
+
+
 }
