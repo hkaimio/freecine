@@ -8,8 +8,15 @@ package fi.kaimio.moviescan.ui;
 
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.color.ColorSpace;
 import java.awt.geom.AffineTransform;
+import java.awt.image.ColorModel;
+import java.awt.image.ColorModel;
+import java.awt.image.ColorModel;
+import java.awt.image.ComponentColorModel;
+import java.awt.image.DataBuffer;
 import java.awt.image.RenderedImage;
+import javax.media.jai.operator.ColorConvertDescriptor;
 import javax.media.jai.operator.ScaleDescriptor;
 
 /**
@@ -63,7 +70,13 @@ public class FrameView extends javax.swing.JPanel {
             float scaleH = (float)getWidth()/(float)img.getWidth();
             float scaleV = (float)getHeight()/(float)img.getHeight();
             float scale = Math.min( scaleV, scaleH );
-            scaledImage = ScaleDescriptor.create(img, scale, scale, 0.0f, 0.0f, null, null);
+            scaledImage = ScaleDescriptor.create( img, scale, scale, 0.0f, 0.0f, null, null );
+            ColorSpace srgb = ColorSpace.getInstance( ColorSpace.CS_sRGB );
+            ColorModel cm =
+                    new ComponentColorModel( ColorSpace.getInstance( ColorSpace.CS_sRGB ),
+                    false, false, ColorModel.OPAQUE, DataBuffer.TYPE_USHORT );
+
+            scaledImage = ColorConvertDescriptor.create( scaledImage, cm, null );
         }
         ((Graphics2D)g).drawRenderedImage(scaledImage, AffineTransform.getScaleInstance(1.0, 1.0));
     }

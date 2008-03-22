@@ -8,8 +8,11 @@ package fi.kaimio.moviescan;
 import com.sun.media.jai.operator.ImageReadDescriptor;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.RenderingHints;
+import java.awt.color.ColorSpace;
 import java.awt.geom.AffineTransform;
 import java.awt.image.ColorModel;
+import java.awt.image.ComponentColorModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
 import java.awt.image.Raster;
@@ -25,7 +28,9 @@ import javax.imageio.ImageReadParam;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.FileImageInputStream;
 import javax.imageio.stream.ImageInputStream;
+import javax.media.jai.ImageLayout;
 import javax.media.jai.Interpolation;
+import javax.media.jai.JAI;
 import javax.media.jai.KernelJAI;
 import javax.media.jai.PlanarImage;
 import javax.media.jai.RasterFactory;
@@ -186,10 +191,6 @@ public class ScanStrip {
             findPerforations();
         }
         
-        // Calculate the top left corner from perforations
-//        int tlx = (perforations.get( n - 1 ).y + perforations.get( n ).y) >> 1;
-//        int tly = perforations.get( n - 1 ).x;
-//        int w = Math.min( FRAME_WIDTH, stripImage.getWidth() - tly );
         AffineTransform xform = getFrameXform( n );
         RenderedOp rotated = 
                 AffineDescriptor.create( stripImage, xform, 
@@ -200,14 +201,16 @@ public class ScanStrip {
         int rw = rotated.getWidth();
         int rh = rotated.getHeight();
         
+
+        ImageLayout layout = new ImageLayout();
+
+        layout.setColorModel( stripImage.getColorModel() );
+        RenderingHints hints = new RenderingHints( JAI.KEY_IMAGE_LAYOUT, layout );
         RenderedOp background =
                 ConstantDescriptor.create( (float) FRAME_WIDTH,
-                (float) FRAME_HEIGHT, new Short[]{0, 0, 0}, null);
-        RenderedOp frame = OverlayDescriptor.create( background, rotated, null );
-        
-//        RenderedOp frame = 
-//                CropDescriptor.create( rotated, (float) 0, (float) 0, 
-//                (float) FRAME_WIDTH, (float) FRAME_HEIGHT, null );
+                (float) FRAME_HEIGHT, new Short[]{0, 0, 0}, null );
+        RenderedOp frame = OverlayDescriptor.create( background, rotated, hints );
+
         return frame;
     }
     
@@ -714,13 +717,20 @@ public class ScanStrip {
             reader = ImageIO.getImageReadersByFormatName( "TIFF" ).next();
             reader.setInput( istrm );
             ImageReadParam param = reader.getDefaultReadParam();
-            // param.setSourceRegion( new Rectangle(0, 0, 1024, reader.getHeight(0 ) ) );
-//            ImageLayout layout = new ImageLayout();
-//            layout.setTileHeight(512);
-//            layout.setTileWidth(4096);
-//            RenderingHints hints = new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout);
+            
+            /*
+             Set the color mode to linear sRGB as we don't have a better profile
+             for the scanner/film available
+             */
+            ColorSpace cs = ColorSpace.getInstance( ColorSpace.CS_LINEAR_RGB );
+            ImageLayout layout = new ImageLayout();
+            ColorModel cm = new ComponentColorModel( cs, false, false, 
+                    ColorModel.OPAQUE, DataBuffer.TYPE_USHORT );
+            layout.setColorModel( cm );
+            RenderingHints hints = new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout);
             stripImage = ImageReadDescriptor.create(istrm, 0, false, false, false, 
-                    null, null, param, reader, null );
+                    null, null, param, reader, hints );
+            System.out.println( "Color model " + stripImage.getColorModel() );
             // BufferedImage inImg = reader.read( 0, param );            
         } catch ( FileNotFoundException ex ) {
             System.out.println( ex.getMessage() );
