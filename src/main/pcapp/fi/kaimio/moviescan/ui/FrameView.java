@@ -8,10 +8,14 @@ package fi.kaimio.moviescan.ui;
 
 import fi.kaimio.moviescan.FrameDescriptor;
 import fi.kaimio.moviescan.Perforation;
+import fi.kaimio.moviescan.ScanStrip;
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.color.ColorSpace;
 import java.awt.geom.AffineTransform;
 import java.awt.image.ColorModel;
@@ -60,9 +64,10 @@ public class FrameView extends javax.swing.JPanel {
     FrameDescriptor currentFrame;
     
     /**
-     The image to show
+     The area of the current perforation in the screen or <code>null</code> if
+     it is not visible.
      */
-    RenderedImage img;
+    Rectangle perfRect;
     
     /**
      Cached copy scaled to the screen resolution.
@@ -77,14 +82,6 @@ public class FrameView extends javax.swing.JPanel {
         this.currentFrame = d;
         scaledImage = null;
         repaint();
-    }
-    
-    /**
-     Get the currently displayed image.
-     @return
-     */
-    public RenderedImage getImage() {
-        return img;
     }
 
     
@@ -234,15 +231,30 @@ public class FrameView extends javax.swing.JPanel {
         int perfWidth = 170;
         int cornerRadius = 25;
         
+        perfRect = new Rectangle( perfX-perfWidth+cornerRadius, 
+                perfY-ty-perfHeight/2, 
+                perfWidth, perfHeight );
+        
         g2.setColor( new Color( 255, 20, 20, 64 ) );
         g2.setStroke( new BasicStroke( 5 ) );
-        g2.drawRoundRect( perfX-perfWidth+cornerRadius, perfY-ty-perfHeight/2, 
+        g2.drawRoundRect( (int)perfRect.getMinX(), (int)perfRect.getMinY(), 
                 perfWidth, perfHeight, cornerRadius*2, cornerRadius*2);
 
         g2.setColor( Color.RED );
         g2.setStroke( new BasicStroke( 1 ) );
-        g2.drawRoundRect( perfX-perfWidth+cornerRadius, perfY-ty-perfHeight/2, 
+        g2.drawRoundRect( (int)perfRect.getMinX(), (int)perfRect.getMinY(), 
                 perfWidth, perfHeight, cornerRadius*2, cornerRadius*2);
+        
+        // If we are dragging the perforation, draw the new position
+        
+        if ( isDragging ) {
+            g2.setStroke( new BasicStroke( 1.0f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND, 1.0f, new float[]{5.0f, 5.0f}, 0.0f ) );
+        g2.drawRoundRect( 
+                (int)perfRect.getMinX() + dragDx, 
+                (int)perfRect.getMinY() + dragDy, 
+                perfWidth, perfHeight, cornerRadius*2, cornerRadius*2);
+        }
+        
         
     }
     
@@ -255,9 +267,25 @@ public class FrameView extends javax.swing.JPanel {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
+        addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                formMousePressed(evt);
+            }
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                formMouseReleased(evt);
+            }
+        });
         addComponentListener(new java.awt.event.ComponentAdapter() {
             public void componentResized(java.awt.event.ComponentEvent evt) {
                 formComponentResized(evt);
+            }
+        });
+        addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
+            public void mouseDragged(java.awt.event.MouseEvent evt) {
+                formMouseDragged(evt);
+            }
+            public void mouseMoved(java.awt.event.MouseEvent evt) {
+                formMouseMoved(evt);
             }
         });
 
@@ -280,6 +308,83 @@ public class FrameView extends javax.swing.JPanel {
     private void formComponentResized(java.awt.event.ComponentEvent evt) {//GEN-FIRST:event_formComponentResized
         repaint();
     }//GEN-LAST:event_formComponentResized
+
+    /**
+     Called when mouse is moved (but not dragged). Set the cursor based on whether 
+     we are on top of perforation or not
+     @param evt
+     */
+    private void formMouseMoved(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_formMouseMoved
+        if ( mode == FrameViewMode.DRAW_PERFORATION && perfRect != null ) {
+            if ( perfRect.contains(evt.getPoint() ) ) {
+                setCursor( Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR) );
+            } else {
+                setCursor( Cursor.getDefaultCursor() );
+            }
+        }
+    }//GEN-LAST:event_formMouseMoved
+
+    /**
+     Start point of ongoin drag or <code>null</code> if no drag is ongoing
+     */
+    Point dragStart;
+    /**
+     X coordinate difference in current drag
+     */
+    int dragDx = 0;
+    /**
+     Y coordinate difference in current drag
+     */
+    int dragDy = 0;
+    /**
+     Is a drag ongoing?
+     */
+    boolean isDragging = false;
+    
+    /**
+     Called when mouse is pressed. Store the position co calculate drag
+     @param evt
+     */
+    private void formMousePressed(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_formMousePressed
+       if ( mode == FrameViewMode.DRAW_PERFORATION && perfRect != null ) {
+            if ( perfRect.contains( evt.getPoint() ) ) {
+                dragStart = evt.getPoint();
+                isDragging = true;
+            }
+        }   
+    }//GEN-LAST:event_formMousePressed
+
+    /**
+     Called when mouse is dragged. Update dragDx and dragDy & schedule a 
+     repaint.
+     @param evt
+     */
+    private void formMouseDragged(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_formMouseDragged
+        if ( dragStart != null ) {
+            dragDx = evt.getX() - (int)dragStart.getX();
+            dragDy = evt.getY() - (int)dragStart.getY();
+            repaint();
+        }
+    }//GEN-LAST:event_formMouseDragged
+
+    /**
+     Called when mouse is released. If user was dragging the perforation, 
+     update its position.
+     @param evt
+     */
+    private void formMouseReleased(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_formMouseReleased
+        if ( isDragging) {
+            isDragging = false;
+            dragStart = null;
+
+            // Move the perforation
+            ScanStrip strip = currentFrame.getStrip();
+            int perfNum = currentFrame.getStripFrameNum();
+            Perforation p = strip.getPerforation( perfNum );
+            strip.setPerforation( perfNum, p.x + dragDx, p.y + dragDy );
+            repaint();
+        }
+    }//GEN-LAST:event_formMouseReleased
 
     
     // Variables declaration - do not modify//GEN-BEGIN:variables
