@@ -217,7 +217,16 @@ public class ScanStrip {
     }
     
     /**
-     Free the associated resources (i.e. the image of the scnaned strip
+     Get image of the whole scan strip. Note that this method is not guaranteed 
+     to succeed unless caller has called reserveStripImage first.
+     @return RenderedImage of the scan strip.
+     */
+    public RenderedImage getStripImage() {
+        return stripImage;
+    }
+    
+    /**
+     Free the associated resources (i.e. the image of the scanned strip
      */
     public void dispose() {
         stripImage.dispose();

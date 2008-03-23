@@ -11,7 +11,7 @@ import java.util.Iterator;
 /**
 FrameIterator is used to access frames of a project/scene sequentically
  */
-public class FrameIterator implements Iterator<RenderedImage> {
+public class FrameIterator implements Iterator<FrameDescriptor> {
 
     /**
      Project this iterator is associated with
@@ -54,7 +54,7 @@ public class FrameIterator implements Iterator<RenderedImage> {
         return (sceneFrame+1) < currentScene.getFrameCount();
     }
 
-    public RenderedImage next() {
+    public FrameDescriptor next() {
         if ( nextFrameNum >= 0 ) {
             sceneFrame = nextFrameNum;
             nextFrameNum = -1;
@@ -69,7 +69,8 @@ public class FrameIterator implements Iterator<RenderedImage> {
             nextStrip.reserveStripImage();
             currentStrip = nextStrip;
         }
-        return currentStrip.getFrame( currentScene.getStripFrameNum( sceneFrame ) );
+        FrameDescriptor d = new FrameDescriptor( currentStrip, currentScene.getStripFrameNum( sceneFrame ) );
+        return d;
     }
 
     public void remove() {
@@ -83,4 +84,5 @@ public class FrameIterator implements Iterator<RenderedImage> {
     public void setNextFrameNum( int n ) {
         nextFrameNum = n;
     }
+
 }

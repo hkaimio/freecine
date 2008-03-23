@@ -34,7 +34,7 @@ import org.xml.sax.helpers.AttributesImpl;
  Project object keeps strck of all inforation related the project (i.e. 
  information about scan strips and scenes
  */
-public class Project implements Iterable<RenderedImage> {
+public class Project implements Iterable<FrameDescriptor> {
 
     private static Log log = LogFactory.getLog( Project.class.getName() );
     /**
@@ -271,7 +271,7 @@ public class Project implements Iterable<RenderedImage> {
         }
     }
 
-    public Iterator<RenderedImage> iterator() {
+    public Iterator<FrameDescriptor> iterator() {
         return new FrameIterator( this );
     }
 

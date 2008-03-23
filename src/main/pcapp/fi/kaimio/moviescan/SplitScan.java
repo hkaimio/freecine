@@ -1028,8 +1028,8 @@ public class SplitScan {
     
     private static void saveProjectFrames( Project prj ) {
         int n = 1;
-        for ( RenderedImage frame : prj ) {
-            saveImage(frame,  new File( String.format( "/tmp/frame_%05d.png", n ) ) );
+        for ( FrameDescriptor desc : prj ) {
+            saveImage(desc.getFrame(),  new File( String.format( "/tmp/frame_%05d.png", n ) ) );
             n++;
         }
     }
