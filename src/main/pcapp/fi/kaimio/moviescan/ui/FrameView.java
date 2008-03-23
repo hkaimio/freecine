@@ -6,6 +6,10 @@
 
 package fi.kaimio.moviescan.ui;
 
+import fi.kaimio.moviescan.FrameDescriptor;
+import fi.kaimio.moviescan.Perforation;
+import java.awt.BasicStroke;
+import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.color.ColorSpace;
@@ -33,7 +37,28 @@ public class FrameView extends javax.swing.JPanel {
         initComponents();
         calcLUT();
     }
+    
+    FrameViewMode mode = FrameViewMode.DRAW_FRAME;
+    
+    /**
+     Get the current drawing mode
+     @return The drawing mode, see {@link FrameViewMode} for details
+     */
+    public FrameViewMode getMode() {
+        return mode;
+    }
+    
+    /**
+     Set the mode how the frame should be drawn
+     @return One of the values defined in {@link FrameViewMode}
+     */
+    public void setMode( FrameViewMode mode ) {
+        this.mode = mode;
+        repaint();
+    }
  
+    FrameDescriptor currentFrame;
+    
     /**
      The image to show
      */
@@ -45,11 +70,11 @@ public class FrameView extends javax.swing.JPanel {
     RenderedImage scaledImage = null;
     
     /**
-     Set the image displayed in this window
-     @param img The image to display
+     Set the current frame to be displayed
+     @param d FrameDescriptor for the current frame
      */
-    public void setImage( RenderedImage img ) {
-        this.img = img;
+    public void setFrame( FrameDescriptor d ) {
+        this.currentFrame = d;
         scaledImage = null;
         repaint();
     }
@@ -135,10 +160,28 @@ public class FrameView extends javax.swing.JPanel {
     @Override
     public void paint( Graphics g ) {
         super.paint(g);
-        if ( img == null ) {
+        switch ( mode ) {
+            case DRAW_FRAME:
+                paintFrame(g);
+                break;
+            case DRAW_PERFORATION:
+                paintPerforation( g );
+        }
+    }
+    
+    /**
+     Paint the current frame, with color/cropping corrections and scaled to 
+     fit component size
+     @param g
+     */
+    void paintFrame( Graphics g ) {
+        if ( currentFrame == null ) {
             return;
         }
-        if ( scaledImage == null ) {
+        if ( scaledImage == null || 
+                (scaledImage.getWidth() != getWidth() && 
+                scaledImage.getHeight() != getHeight() ) ) {
+            RenderedImage img = currentFrame.getFrame();
             float scaleH = (float)getWidth()/(float)img.getWidth();
             float scaleV = (float)getHeight()/(float)img.getHeight();
             float scale = Math.min( scaleV, scaleH );
@@ -155,8 +198,54 @@ public class FrameView extends javax.swing.JPanel {
 
             scaledImage = ColorConvertDescriptor.create( scaledImage, cm, null );
         }
-        ((Graphics2D)g).drawRenderedImage(scaledImage, AffineTransform.getScaleInstance(1.0, 1.0));
+        ((Graphics2D)g).drawRenderedImage(scaledImage, AffineTransform.getScaleInstance(1.0, 1.0));        
     }
+
+    /**
+     Paint the "raw" strip so that current perforation is centered and show the
+     perforation boundaries as an overlay
+     @param g
+     */
+    private void paintPerforation( Graphics g ) {
+        if ( currentFrame == null ) {
+            return;
+        }
+        RenderedImage stripImage = currentFrame.getStrip().getStripImage();
+        int perfNum = currentFrame.getStripFrameNum();
+        Perforation p = currentFrame.getStrip().getPerforation( perfNum );
+        int perfX = p.x;
+        int perfY = p.y;
+        
+        // Try to set the perforation at the middle of the view
+        int ty = perfY-(getHeight()/2);
+        if ( ty < 0 ) {
+            ty = 0;
+        }
+        if ( ty+getHeight() > stripImage.getHeight() ) {
+            ty = stripImage.getHeight() - getHeight();
+        }
+        
+        Graphics2D g2 = (Graphics2D) g.create();
+        AffineTransform t = AffineTransform.getTranslateInstance(0, -ty);
+        g2.drawRenderedImage(stripImage, t);
+        
+        // Next, draw the outline of the recognized perforation
+        int perfHeight = 217;
+        int perfWidth = 170;
+        int cornerRadius = 25;
+        
+        g2.setColor( new Color( 255, 20, 20, 64 ) );
+        g2.setStroke( new BasicStroke( 5 ) );
+        g2.drawRoundRect( perfX-perfWidth+cornerRadius, perfY-ty-perfHeight/2, 
+                perfWidth, perfHeight, cornerRadius*2, cornerRadius*2);
+
+        g2.setColor( Color.RED );
+        g2.setStroke( new BasicStroke( 1 ) );
+        g2.drawRoundRect( perfX-perfWidth+cornerRadius, perfY-ty-perfHeight/2, 
+                perfWidth, perfHeight, cornerRadius*2, cornerRadius*2);
+        
+    }
+    
     
     /** This method is called from within the constructor to
      initialize the form.
@@ -165,6 +254,12 @@ public class FrameView extends javax.swing.JPanel {
      */
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
+
+        addComponentListener(new java.awt.event.ComponentAdapter() {
+            public void componentResized(java.awt.event.ComponentEvent evt) {
+                formComponentResized(evt);
+            }
+        });
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
@@ -177,7 +272,15 @@ public class FrameView extends javax.swing.JPanel {
             .addGap(0, 300, Short.MAX_VALUE)
         );
     }// </editor-fold>//GEN-END:initComponents
-    
+
+    /**
+     Called when the component is resized. Schedule repaint
+     @param evt The resize event
+     */
+    private void formComponentResized(java.awt.event.ComponentEvent evt) {//GEN-FIRST:event_formComponentResized
+        repaint();
+    }//GEN-LAST:event_formComponentResized
+
     
     // Variables declaration - do not modify//GEN-BEGIN:variables
     // End of variables declaration//GEN-END:variables

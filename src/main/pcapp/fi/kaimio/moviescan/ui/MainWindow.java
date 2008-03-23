@@ -43,21 +43,108 @@ public class MainWindow extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        frameNumField = new javax.swing.JTextField();
+        jToolBar1 = new javax.swing.JToolBar();
+        frameViewModeGroup = new javax.swing.ButtonGroup();
+        framePane = new FrameView();
+        stripView = new ScanStripView();
+        jPanel1 = new javax.swing.JPanel();
+        blackSlider = new javax.swing.JSlider();
+        jLabel4 = new javax.swing.JLabel();
+        whiteSlider = new javax.swing.JSlider();
+        jLabel5 = new javax.swing.JLabel();
+        jPanel2 = new javax.swing.JPanel();
         jLabel1 = new javax.swing.JLabel();
+        frameNumField = new javax.swing.JTextField();
         goToFrameBtn = new javax.swing.JButton();
         nextFrameBtn = new javax.swing.JButton();
-        framePane = new FrameView();
-        whiteSlider = new javax.swing.JSlider();
-        jLabel4 = new javax.swing.JLabel();
-        jLabel5 = new javax.swing.JLabel();
-        blackSlider = new javax.swing.JSlider();
-        stripView = new ScanStripView();
+        jSeparator1 = new javax.swing.JSeparator();
+        jMenuBar1 = new javax.swing.JMenuBar();
+        jMenu1 = new javax.swing.JMenu();
+        jMenu2 = new javax.swing.JMenu();
+        jToolBar2 = new javax.swing.JToolBar();
+        perfViewModeBtn = new javax.swing.JToggleButton();
+        frameViewModeBtn = new javax.swing.JToggleButton();
         jMenuBar1 = new javax.swing.JMenuBar();
         jMenu1 = new javax.swing.JMenu();
         jMenu2 = new javax.swing.JMenu();
 
+        jToolBar1.setRollover(true);
+
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+
+        framePane.setBorder(new javax.swing.border.MatteBorder(null));
+
+        javax.swing.GroupLayout framePaneLayout = new javax.swing.GroupLayout(framePane);
+        framePane.setLayout(framePaneLayout);
+        framePaneLayout.setHorizontalGroup(
+            framePaneLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 452, Short.MAX_VALUE)
+        );
+        framePaneLayout.setVerticalGroup(
+            framePaneLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 381, Short.MAX_VALUE)
+        );
+
+        javax.swing.GroupLayout stripViewLayout = new javax.swing.GroupLayout(stripView);
+        stripView.setLayout(stripViewLayout);
+        stripViewLayout.setHorizontalGroup(
+            stripViewLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 34, Short.MAX_VALUE)
+        );
+        stripViewLayout.setVerticalGroup(
+            stripViewLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 460, Short.MAX_VALUE)
+        );
+
+        jPanel1.setBorder(javax.swing.BorderFactory.createTitledBorder("Colors"));
+
+        blackSlider.setMaximum(1000);
+        blackSlider.setValue(0);
+        blackSlider.addChangeListener(new javax.swing.event.ChangeListener() {
+            public void stateChanged(javax.swing.event.ChangeEvent evt) {
+                blackSliderStateChanged(evt);
+            }
+        });
+
+        jLabel4.setText("White");
+
+        whiteSlider.setMaximum(65535);
+        whiteSlider.setValue(65535);
+        whiteSlider.addChangeListener(new javax.swing.event.ChangeListener() {
+            public void stateChanged(javax.swing.event.ChangeEvent evt) {
+                whiteSliderStateChanged(evt);
+            }
+        });
+
+        jLabel5.setText("Black");
+
+        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
+        jPanel1.setLayout(jPanel1Layout);
+        jPanel1Layout.setHorizontalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jLabel4)
+                    .addComponent(jLabel5)
+                    .addComponent(whiteSlider, javax.swing.GroupLayout.DEFAULT_SIZE, 223, Short.MAX_VALUE)
+                    .addComponent(blackSlider, javax.swing.GroupLayout.DEFAULT_SIZE, 223, Short.MAX_VALUE))
+                .addContainerGap())
+        );
+        jPanel1Layout.setVerticalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                .addComponent(jLabel4)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(whiteSlider, javax.swing.GroupLayout.DEFAULT_SIZE, 48, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jLabel5)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(blackSlider, javax.swing.GroupLayout.PREFERRED_SIZE, 49, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(262, 262, 262))
+        );
+
+        jPanel2.setBorder(javax.swing.BorderFactory.createEmptyBorder(1, 1, 1, 1));
 
         jLabel1.setText("Frame");
 
@@ -75,49 +162,65 @@ public class MainWindow extends javax.swing.JFrame {
             }
         });
 
-        framePane.setBorder(new javax.swing.border.MatteBorder(null));
-
-        javax.swing.GroupLayout framePaneLayout = new javax.swing.GroupLayout(framePane);
-        framePane.setLayout(framePaneLayout);
-        framePaneLayout.setHorizontalGroup(
-            framePaneLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 445, Short.MAX_VALUE)
+        javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
+        jPanel2.setLayout(jPanel2Layout);
+        jPanel2Layout.setHorizontalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jLabel1)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(frameNumField, javax.swing.GroupLayout.PREFERRED_SIZE, 72, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(goToFrameBtn)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(nextFrameBtn)
+                .addContainerGap(390, Short.MAX_VALUE))
         );
-        framePaneLayout.setVerticalGroup(
-            framePaneLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 337, Short.MAX_VALUE)
+        jPanel2Layout.setVerticalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                .addComponent(jLabel1)
+                .addComponent(frameNumField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(goToFrameBtn)
+                .addComponent(nextFrameBtn))
         );
 
-        whiteSlider.setMaximum(65535);
-        whiteSlider.setValue(65535);
-        whiteSlider.addChangeListener(new javax.swing.event.ChangeListener() {
-            public void stateChanged(javax.swing.event.ChangeEvent evt) {
-                whiteSliderStateChanged(evt);
+        jMenu1.setText("File");
+        jMenuBar1.add(jMenu1);
+
+        jMenu2.setText("Edit");
+        jMenuBar1.add(jMenu2);
+
+        setJMenuBar(jMenuBar1);
+
+        jToolBar2.setFloatable(false);
+        jToolBar2.setRollover(true);
+
+        frameViewModeGroup.add(perfViewModeBtn);
+        perfViewModeBtn.setText("Perforation");
+        perfViewModeBtn.setFocusable(false);
+        perfViewModeBtn.setHorizontalTextPosition(javax.swing.SwingConstants.CENTER);
+        perfViewModeBtn.setVerticalTextPosition(javax.swing.SwingConstants.BOTTOM);
+        perfViewModeBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                perfViewModeBtnActionPerformed(evt);
             }
         });
+        jToolBar2.add(perfViewModeBtn);
 
-        jLabel4.setText("White");
-
-        jLabel5.setText("Black");
-
-        blackSlider.setMaximum(1000);
-        blackSlider.setValue(0);
-        blackSlider.addChangeListener(new javax.swing.event.ChangeListener() {
-            public void stateChanged(javax.swing.event.ChangeEvent evt) {
-                blackSliderStateChanged(evt);
+        frameViewModeGroup.add(frameViewModeBtn);
+        frameViewModeBtn.setSelected(true);
+        frameViewModeBtn.setText("Frame");
+        frameViewModeBtn.setFocusable(false);
+        frameViewModeBtn.setHorizontalTextPosition(javax.swing.SwingConstants.CENTER);
+        frameViewModeBtn.setVerticalTextPosition(javax.swing.SwingConstants.BOTTOM);
+        frameViewModeBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                frameViewModeBtnActionPerformed(evt);
             }
         });
-
-        javax.swing.GroupLayout stripViewLayout = new javax.swing.GroupLayout(stripView);
-        stripView.setLayout(stripViewLayout);
-        stripViewLayout.setHorizontalGroup(
-            stripViewLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 34, Short.MAX_VALUE)
-        );
-        stripViewLayout.setVerticalGroup(
-            stripViewLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 432, Short.MAX_VALUE)
-        );
+        jToolBar2.add(frameViewModeBtn);
 
         jMenu1.setText("File");
         jMenuBar1.add(jMenu1);
@@ -135,29 +238,17 @@ public class MainWindow extends javax.swing.JFrame {
                 .addContainerGap()
                 .addComponent(stripView, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jLabel1)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(frameNumField, javax.swing.GroupLayout.PREFERRED_SIZE, 72, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(35, 35, 35)
-                        .addComponent(goToFrameBtn)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(nextFrameBtn))
-                    .addComponent(framePane, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(jSeparator1, javax.swing.GroupLayout.DEFAULT_SIZE, 719, Short.MAX_VALUE)
                     .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
-                        .addGap(18, 18, 18)
-                        .addComponent(jLabel5))
-                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                        .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
-                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                            .addComponent(blackSlider, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                        .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
-                            .addGap(12, 12, 12)
-                            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                .addComponent(jLabel4)
-                                .addComponent(whiteSlider, javax.swing.GroupLayout.PREFERRED_SIZE, 268, javax.swing.GroupLayout.PREFERRED_SIZE)))))
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jToolBar2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(framePane, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGap(106, 106, 106)))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -167,28 +258,16 @@ public class MainWindow extends javax.swing.JFrame {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(stripView, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(framePane, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGroup(layout.createSequentialGroup()
-                                .addComponent(jLabel4)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
+                                .addComponent(jToolBar2, javax.swing.GroupLayout.PREFERRED_SIZE, 25, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(whiteSlider, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jLabel5)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(blackSlider, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(layout.createSequentialGroup()
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                    .addComponent(frameNumField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(jLabel1)))
-                            .addGroup(layout.createSequentialGroup()
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                    .addComponent(goToFrameBtn)
-                                    .addComponent(nextFrameBtn))))
-                        .addGap(46, 46, 46)))
+                                .addComponent(framePane, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addContainerGap())
         );
 
@@ -200,7 +279,7 @@ public class MainWindow extends javax.swing.JFrame {
             FrameDescriptor d = projectIter.next();
             currentImage = d.getFrame();
             frameNumField.setText( Integer.toString( projectIter.getCurrentFrameNum() ));
-            ((FrameView)framePane).setImage( currentImage );
+            ((FrameView)framePane).setFrame( d );
             stripViewer.setStrip( d.getStrip() );
         }
 }//GEN-LAST:event_nextFrameBtnActionPerformed
@@ -226,6 +305,14 @@ public class MainWindow extends javax.swing.JFrame {
         int val = blackSlider.getValue();
         ((FrameView) framePane).setBlack( val );
 }//GEN-LAST:event_blackSliderStateChanged
+
+    private void frameViewModeBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_frameViewModeBtnActionPerformed
+        ((FrameView) framePane).setMode( FrameViewMode.DRAW_FRAME );
+    }//GEN-LAST:event_frameViewModeBtnActionPerformed
+
+    private void perfViewModeBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_perfViewModeBtnActionPerformed
+        ((FrameView) framePane).setMode( FrameViewMode.DRAW_PERFORATION );
+    }//GEN-LAST:event_perfViewModeBtnActionPerformed
     
     /**
      @param args the command line arguments
@@ -242,6 +329,8 @@ public class MainWindow extends javax.swing.JFrame {
     private javax.swing.JSlider blackSlider;
     private javax.swing.JTextField frameNumField;
     private javax.swing.JPanel framePane;
+    private javax.swing.JToggleButton frameViewModeBtn;
+    private javax.swing.ButtonGroup frameViewModeGroup;
     private javax.swing.JButton goToFrameBtn;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel4;
@@ -249,7 +338,13 @@ public class MainWindow extends javax.swing.JFrame {
     private javax.swing.JMenu jMenu1;
     private javax.swing.JMenu jMenu2;
     private javax.swing.JMenuBar jMenuBar1;
+    private javax.swing.JPanel jPanel1;
+    private javax.swing.JPanel jPanel2;
+    private javax.swing.JSeparator jSeparator1;
+    private javax.swing.JToolBar jToolBar1;
+    private javax.swing.JToolBar jToolBar2;
     private javax.swing.JButton nextFrameBtn;
+    private javax.swing.JToggleButton perfViewModeBtn;
     private javax.swing.JPanel stripView;
     private javax.swing.JSlider whiteSlider;
     // End of variables declaration//GEN-END:variables
