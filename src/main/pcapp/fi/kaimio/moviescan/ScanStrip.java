@@ -22,7 +22,9 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReadParam;
 import javax.imageio.ImageReader;
@@ -40,7 +42,6 @@ import javax.media.jai.iterator.RectIterFactory;
 import javax.media.jai.operator.AffineDescriptor;
 import javax.media.jai.operator.ConstantDescriptor;
 import javax.media.jai.operator.ConvolveDescriptor;
-import javax.media.jai.operator.CropDescriptor;
 import javax.media.jai.operator.FormatDescriptor;
 import javax.media.jai.operator.OverlayDescriptor;
 import javax.xml.transform.sax.TransformerHandler;
@@ -51,9 +52,25 @@ import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
 /**
- ScanStrip represents strip of film scanned at once. It provides methods for 
+ ScanStrip represents a strip of film scanned at once. It provides methods for 
  identifying perforations and frames in the strip as well as for getting 
  individual frames out of the scan.
+ <p>
+ 
+ <h2>Numbering of Frames</h2>
+ 
+ Numbering of frames in strip is a bit complicated. First, the perforations are 
+ nubmered from 0 to n, starting from "topmost" (i.e. first in time) perforation.
+ The position and orientation of frame is determined based on 3 perforations, so 
+ no frames are created for first and last perforations. So there are n-2 frames 
+ and perforation n corresponds to frame n-1.
+ <p>
+ 
+ In addition to this it is possible to disable ther first or last frames with
+ setFirstUsableFrame() and setLastUsableFrame() methods (if there are duplicate 
+ frames in strips or the ends of the strip are not usable for other reason. 
+ This does not affect frame numbering, impact of these is handled in {@link Scene}
+ and in particular {@link FrameRange} classes.
  */
 public class ScanStrip {
    
@@ -130,6 +147,15 @@ public class ScanStrip {
      */
     List<Perforation> perforations;
     
+    /**
+     Order number of the first usable frame in the strip
+     */
+    int firstUsableFrame = 0;
+    
+    /**
+     Order number of the last usable frame in the strip
+     */
+    int lastUsableFrame = -1;
     
     /**
      Constructs a new ScanStrip object
@@ -141,6 +167,36 @@ public class ScanStrip {
 
     public ScanStrip() {
         stripImage = null;
+    }
+    
+    /**
+     Listeners that will be notified of changes
+     */
+    Set<ScanStripListener> listeners = new HashSet<ScanStripListener>();
+    
+    /**
+     Add a new listener that will be notified of changes
+     @param l The new listener
+     */
+    public void addScanStripListener( ScanStripListener l ) {
+        listeners.add( l );
+    }
+    
+    /**
+    Remove a listener 
+     @param l The listener to be removed
+     */
+    public void removeScanStripListener( ScanStripListener l ) {
+        listeners.remove( l );
+    }
+    
+    /**
+     Notify all registered listeners about changes
+     */
+    private void notifyListeners() {
+        for ( ScanStripListener l : listeners ) {
+            l.scanStripChanged( this );
+        }
     }
     
     String name;
@@ -180,8 +236,44 @@ public class ScanStrip {
         return perforations.size()-2;
     }
     
+    /**
+     Get the first frame from this strip that is usable
+     @return Order number of the last usable frame
+     */
+    public int getFirstUsable() {
+        return firstUsableFrame;
+    }
+
+    /**
+     Set the first usable frame from thsi strip
+     @param frame Order nubmer of the first usable frame
+     */
+    public void setFirstUsable( int frame ) {
+        firstUsableFrame = frame;
+        notifyListeners();
+    }
     
+    /**
+     Get the last frame from this strip that is usable
+     @return Order number of the last usable frame
+     */
+    public int getLastUsable() {
+        if ( lastUsableFrame < 0 ) {
+            lastUsableFrame = getFrameCount()-1;
+        }
+        return lastUsableFrame;
+    }
+
+    /**
+     Set the first usable frame from thsi strip
+     @param frame Order nubmer of the first usable frame
+     */
+    public void setLastUsable( int frame ) {
+        lastUsableFrame = frame;
+        notifyListeners();
+    }
     
+
     /**
      Get the nth frame of the scan
      @param n frame to get
@@ -246,7 +338,7 @@ public class ScanStrip {
         }
         Perforation p = new Perforation( x, y );
         perforations.add( p );
-        
+        notifyListeners();
     }
     
     /**
@@ -312,6 +404,8 @@ public class ScanStrip {
          return xform;
     }
 
+
+
     void setOrientation( int i ) {
         imageOrientation = i;
     }
@@ -319,6 +413,7 @@ public class ScanStrip {
     private void findPerforations() {
         houghTransform();
         filterPerforations();
+        notifyListeners();
     }
 
     /**

@@ -16,44 +16,7 @@ import org.xml.sax.helpers.AttributesImpl;
  Scene in this context is defined as a continuos part of film that is treated 
  in the same way in conversion.
  */
-public class Scene {
-    
-    static class FrameRange {
-        
-        /**
-         Scan strip from which this frame is from
-         */
-        ScanStrip strip;
-        
-        /**
-         Number of frames in this range
-         */
-        int frameCount;
-        
-        /**
-         First frame from the strip that is is included in the range
-         */
-        int stripFirst;
-        
-        /**
-         Number of the first frame in the scene
-         */
-        int sceneFirst;
-
-        /**
-         Create a new frame range
-         @param strip The ScanStrip in which the frames are
-         @param stripFirst First frame in the strip
-         @param sceneFirst Orner number of the first frame in the scene
-         @param frameCount Number of frames to include in the range
-         */
-        public FrameRange( ScanStrip strip, int stripFirst, int sceneFirst, int frameCount ) {
-            this.strip = strip;
-            this.stripFirst = stripFirst;
-            this.sceneFirst = sceneFirst;
-            this.frameCount = frameCount;
-        }
-    } 
+public class Scene implements FrameRangeChangeListener {
     
     /**
      Frames in this scene
@@ -75,7 +38,7 @@ public class Scene {
         FrameRange lastRange = getLastRange();
         FrameRange newRange = new FrameRange( strip, firstFrame, getFrameCount(), frameCount );
         frames.add( newRange );
-        
+        newRange.addFrameRangeChangeListener( this );
     }
     
     /**
@@ -84,7 +47,7 @@ public class Scene {
      */
     public int getFrameCount() {
         FrameRange lastRange = getLastRange();
-        return lastRange != null ? lastRange.sceneFirst + lastRange.frameCount : 0;
+        return lastRange != null ? lastRange.getSceneFirst() + lastRange.getFrameCount() : 0;
     }
 
     /**
@@ -107,6 +70,8 @@ public class Scene {
         return null;
     }
     
+
+    
     /**
      Get a part of the scene
      @param startFrame start frame of the new scene
@@ -117,10 +82,10 @@ public class Scene {
         Scene newScene = new Scene();
         int frame = 0;
         for ( FrameRange r : frames ) {
-            if ( r.sceneFirst+r.frameCount >= startFrame ) {
-                int rangeStart = Math.max( 0, startFrame - r.sceneFirst );
-                int numFrames = Math.min( r.frameCount-rangeStart, frameCount-frame );
-                newScene.addFrames(r.strip, r.stripFirst+rangeStart, numFrames );
+            if ( r.getSceneFirst()+r.getFrameCount() >= startFrame ) {
+                int rangeStart = Math.max( 0, startFrame - r.getSceneFirst() );
+                int numFrames = Math.min( r.getFrameCount()-rangeStart, frameCount-frame );
+                newScene.addFrames(r.getStrip(), r.getStripFirst()+rangeStart, numFrames  );
                 frame += numFrames;
                 if ( frame == frameCount ) {
                     break;
@@ -136,10 +101,24 @@ public class Scene {
      */
     public void append( Scene s ) {
         for ( FrameRange r : s.frames ) {
-            addFrames(r.strip, r.stripFirst, r.frameCount );
+            addFrames(r.getStrip(),r.getStripFirst(),r.getFrameCount() );
         }
     }
 
+    /**
+     Called when a {@link FrameRange} of this scene has been changed, probably 
+     due to disabling a frame that belongs to some of those.
+     @param arg0
+     */
+    public void frameRangeChanged( FrameRange arg0 ) {
+        int startFrame = 0;
+        for ( FrameRange r : frames ) {
+            r.setSceneFirst( startFrame );
+            startFrame += r.getActiveFrameCount();
+        }
+    }
+
+    
     private FrameRange getLastRange() {
         int rangeCount = frames.size();
         return rangeCount > 0 ? frames.get( frames.size() -1 ) : null;
@@ -152,7 +131,7 @@ public class Scene {
      */
     public ScanStrip getFrameStrip( int frame ) {
         FrameRange r = getRangeForFrame(frame);
-        return r != null ? r.strip : null;
+        return r != null ? r.getStrip() : null;
     }
     
     /**
@@ -162,7 +141,7 @@ public class Scene {
      */
     public int getStripFrameNum( int frame ) {
         FrameRange r = getRangeForFrame(frame);
-        return r != null ? r.stripFirst + frame - r.sceneFirst : -1;
+        return r != null ? r.getStripFirstActive() + frame - r.getSceneFirst() : -1;
     }
     
     /**
@@ -177,10 +156,10 @@ public class Scene {
         while ( low < high ) {
             int n = (low + high) /2;
             r = frames.get( n );
-            if ( r.sceneFirst <= frame && r.sceneFirst+r.frameCount > frame ) {
+            if ( r.getSceneFirst() <= frame && r.getSceneFirst()+r.getFrameCount() > frame ) {
                 break;
             }
-            if ( frame > r.sceneFirst ) {
+            if ( frame > r.getSceneFirst() ) {
                 low = n;
             } else {
                 high = n;
@@ -195,9 +174,9 @@ public class Scene {
         hd.startElement("", "", "frames", atts);
         for ( FrameRange r : frames ) {
             atts.clear();
-            atts.addAttribute("", "", "strip", "CDATA", r.strip.getName() );
-            atts.addAttribute("", "", "start", "CDATA", Integer.toString(r.stripFirst ) );
-            atts.addAttribute("", "", "count", "CDATA", Integer.toString(r.frameCount ) );
+            atts.addAttribute("", "", "strip", "CDATA", r.getStrip().getName() );
+            atts.addAttribute("", "", "start", "CDATA", Integer.toString(r.getStripFirst() ) );
+            atts.addAttribute("", "", "count", "CDATA", Integer.toString(r.getFrameCount() ) );
             hd.startElement("", "", "framerange", atts);
             hd.endElement("", "", "framerange");
         }

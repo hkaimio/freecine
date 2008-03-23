@@ -87,4 +87,37 @@ public class TestScanStrip {
         strip.releaseStripImage();
         img = strip.getFrame(7);
     }
+
+    private static class Listener implements ScanStripListener {
+
+        public boolean notified = false;
+        public void scanStripChanged( ScanStrip changedStrip ) {
+            notified = true;
+        }
+        
+    }
+    @Test
+    public void testNotifier() {
+        ScanStrip sc = new ScanStrip();
+        sc.setOrientation( 90 );
+        for ( int n = 100; n < 37000; n += 800 ) {
+            sc.addPerforation( 100, n );
+        }
+        
+        Listener l = new Listener();
+        
+        sc.addScanStripListener(l);
+        sc.addPerforation(100, 38000);
+        assertTrue(l.notified);
+        l.notified = false;
+        sc.setFirstUsable( 2 );
+        assertTrue(l.notified);
+        l.notified = false;        
+        sc.setLastUsable(30);
+        assertTrue(l.notified);
+        l.notified = false;
+        sc.removeScanStripListener(l);
+        sc.setFirstUsable(0 );
+        assertFalse(l.notified);
+    }
 }

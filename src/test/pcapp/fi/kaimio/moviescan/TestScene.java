@@ -59,6 +59,38 @@ public class TestScene {
         }
     }
     
+    @Test
+    public void testRangeChanges() {
+        ScanStrip sc1 = new ScanStrip();
+        ScanStrip sc2 = new ScanStrip();
+        
+        for ( int n = 0; n < 32 ; n++ ) {
+            sc1.addPerforation( 100, n*800 );
+            sc2.addPerforation( 100, n*800 );
+        }
+        
+        Scene scene = new Scene();
+        scene.addFrames(sc1, 3, 27 );
+        scene.addFrames(sc2, 0, 25 );
+        
+        assertTrue(scene.getFrameStrip(27) == sc2 );
+        assertEquals( 0, scene.getStripFrameNum(27) );
+        
+        sc2.setFirstUsable( 1 );
+        assertTrue(scene.getFrameStrip(27) == sc2 );
+        assertEquals( 1, scene.getStripFrameNum(27) );
+        
+        // Disabling 2 first frames should not affect the scene
+        sc1.setFirstUsable( 2 );
+        assertEquals( 3, scene.getStripFrameNum( 0 ));
+        sc1.setFirstUsable( 4 );
+        assertEquals( 4, scene.getStripFrameNum( 0 ));
+        assertEquals( 2, scene.getStripFrameNum( 27 ));
+        sc1.setFirstUsable( 2 );
+        assertEquals( 3, scene.getStripFrameNum( 0 ));
+        assertEquals( 1, scene.getStripFrameNum( 27 ));
+    }
+    
     /**
      Test import & export to XML
      @throws java.io.IOException
