@@ -427,7 +427,7 @@ public class ScanStrip {
          AffineTransform xform = new AffineTransform();
          xform.translate( 0, FRAME_HEIGHT/2 );
          xform.rotate( rot );
-         xform.translate(-perforations.get(framePerf).x, -perforations.get(framePerf).y);
+         xform.translate(-perforations.get(frame).x, -perforations.get(frame).y);
 //         System.out.println( String.format( "frame %d: (%d, %d), rot %f", 
 //                 frame,perforations.get(frame).x, -perforations.get(frame).y, rot ));         
          return xform;
