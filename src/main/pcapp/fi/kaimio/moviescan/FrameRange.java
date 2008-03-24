@@ -47,7 +47,7 @@ class FrameRange implements ScanStripListener {
         this.strip = strip;
         this.stripFirst = stripFirst;
         this.sceneFirst = sceneFirst;
-        this.frameCount = frameCount;
+        this.frameCount = Math.min(frameCount, strip.getFrameCount() );
         stripFirstActive = Math.max(stripFirst, strip.getFirstUsable() );
         stripLastActive = Math.min( stripFirst+frameCount-1, strip.getLastUsable() );
         strip.addScanStripListener( this );

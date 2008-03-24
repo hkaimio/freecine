@@ -208,8 +208,7 @@ public class FrameView extends javax.swing.JPanel {
             return;
         }
         RenderedImage stripImage = currentFrame.getStrip().getStripImage();
-        int perfNum = currentFrame.getStripFrameNum();
-        Perforation p = currentFrame.getStrip().getPerforation( perfNum );
+        Perforation p = currentFrame.getPerforation();
         int perfX = p.x;
         int perfY = p.y;
         

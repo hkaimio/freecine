@@ -281,6 +281,7 @@ public class MainWindow extends javax.swing.JFrame {
             frameNumField.setText( Integer.toString( projectIter.getCurrentFrameNum() ));
             ((FrameView)framePane).setFrame( d );
             stripViewer.setStrip( d.getStrip() );
+            stripViewer.setSelectedFrame( d.getStripFrameNum() );
         }
 }//GEN-LAST:event_nextFrameBtnActionPerformed
 

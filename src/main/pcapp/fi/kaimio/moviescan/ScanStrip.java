@@ -147,10 +147,13 @@ public class ScanStrip {
      */
     List<Perforation> perforations;
     
+    
     /**
-     Order number of the first usable frame in the strip
+     Order number of the first usable frame in the strip. Negative value indicates 
+     that the value has not been set; in that case it willb e initialized to the 
+     first full frame in the strip.
      */
-    int firstUsableFrame = 0;
+    int firstUsableFrame = -1;
     
     /**
      Order number of the last usable frame in the strip
@@ -189,7 +192,7 @@ public class ScanStrip {
     public void removeScanStripListener( ScanStripListener l ) {
         listeners.remove( l );
     }
-    
+
     /**
      Notify all registered listeners about changes
      */
@@ -233,7 +236,8 @@ public class ScanStrip {
         if ( perforations == null ) {
             findPerforations();
         }
-        return perforations.size()-2;
+        // For now, assume that the last frame is not complete
+        return perforations.size()-1;
     }
     
     /**
@@ -241,6 +245,10 @@ public class ScanStrip {
      @return Order number of the last usable frame
      */
     public int getFirstUsable() {
+        if ( firstUsableFrame < 0 ) {
+            firstUsableFrame =  
+                    ( perforations.get(0).y > FRAME_HEIGHT/2 + 10 ) ? 0 : 1;
+        }
         return firstUsableFrame;
     }
 
@@ -273,7 +281,26 @@ public class ScanStrip {
         notifyListeners();
     }
     
+    /**
+     Depending on the exact alignment of this strip, the frame that corresponds 
+     to the first perforation can be either full or partial. This function 
+     calculates the order number of the preforation that corresponds to the first 
+     <b>full</b> frame.
+     @return Offset of the first frame
+     */
+    private int getFrameOffset() {
+        return 0;
+    }
 
+    /**
+     Check whether the frame that corresponds to the last perforation in this 
+     strip is full
+     @return
+     */
+    private boolean hasLastPerfFullFrame() {
+        return false;
+    }
+    
     /**
      Get the nth frame of the scan
      @param n frame to get
@@ -307,6 +334,7 @@ public class ScanStrip {
 
         return frame;
     }
+    
     
     /**
      Get image of the whole scan strip. Note that this method is not guaranteed 
@@ -384,6 +412,7 @@ public class ScanStrip {
         /**
          Estimate film rotation from max 5 perforations
          */ 
+        
          int f1 = frame-1;
          int f2 = frame+1;
          int x1 = (f1 >= 0) ? perforations.get( f1 ).x : perforations.get(0).x;
@@ -398,9 +427,9 @@ public class ScanStrip {
          AffineTransform xform = new AffineTransform();
          xform.translate( 0, FRAME_HEIGHT/2 );
          xform.rotate( rot );
-         xform.translate(-perforations.get(frame).x, -perforations.get(frame).y);
-         System.out.println( String.format( "frame %d: (%d, %d), rot %f", 
-                 frame,perforations.get(frame).x, -perforations.get(frame).y, rot ));         
+         xform.translate(-perforations.get(framePerf).x, -perforations.get(framePerf).y);
+//         System.out.println( String.format( "frame %d: (%d, %d), rot %f", 
+//                 frame,perforations.get(frame).x, -perforations.get(frame).y, rot ));         
          return xform;
     }
 

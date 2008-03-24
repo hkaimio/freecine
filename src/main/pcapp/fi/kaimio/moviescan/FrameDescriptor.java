@@ -44,5 +44,13 @@ public class FrameDescriptor {
     public RenderedImage getFrame() {
         return strip.getFrame( frameNum );
     }
+    
+    /**
+     Get the perforation matching to this frame
+     @return
+     */
+    public Perforation getPerforation() {
+        return strip.getPerforation( frameNum );
+    }
             
 }

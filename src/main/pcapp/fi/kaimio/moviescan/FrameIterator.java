@@ -70,6 +70,7 @@ public class FrameIterator implements Iterator<FrameDescriptor> {
             currentStrip = nextStrip;
         }
         FrameDescriptor d = new FrameDescriptor( currentStrip, currentScene.getStripFrameNum( sceneFrame ) );
+        System.err.printf( "Frame %d, strip %s[%d]\n", sceneFrame, d.getStrip().getName(), d.getStripFrameNum() );
         return d;
     }
 

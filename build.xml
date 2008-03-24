@@ -325,7 +325,7 @@
         <sourcepath refid="debug.sourcepath"/> 
     </nbjpdastart>
 
-    <java fork="true" classname="fi.kaimio.moviescan.ui.MainWindow">
+    <java fork="true" classname="fi.kaimio.moviescan.ui.Moviescan">
         <jvmarg value="-Xmx${heap.max_size}M"/>
         <jvmarg value="-Djava.library.path=${jlibnxt.path}"/>
         <!--<jvmarg value="-XX:+PrintGCDetails"/>-->

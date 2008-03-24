@@ -33,6 +33,17 @@ public class ScanStripView extends javax.swing.JPanel {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
+        addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                formMouseExited(evt);
+            }
+        });
+        addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
+            public void mouseMoved(java.awt.event.MouseEvent evt) {
+                formMouseMoved(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
         layout.setHorizontalGroup(
@@ -45,6 +56,18 @@ public class ScanStripView extends javax.swing.JPanel {
         );
     }// </editor-fold>//GEN-END:initComponents
 
+    private void formMouseMoved(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_formMouseMoved
+        mouseOverPerf = getFrameAt( evt.getX(), evt.getY() );
+        repaint();
+    }//GEN-LAST:event_formMouseMoved
+
+    private void formMouseExited(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_formMouseExited
+        mouseOverPerf = -1;
+        repaint();
+    }//GEN-LAST:event_formMouseExited
+
+    
+    
     /**
      Get the strip currently shown
      @return The current strip
@@ -63,6 +86,53 @@ public class ScanStripView extends javax.swing.JPanel {
         }
         repaint();
     }
+    
+    public void setSelectedFrame( int n ) {
+        selectedFrame = n;
+        selectedPerf = -1;
+    }
+    
+    public int getSelectedFrame() {
+        return selectedFrame;
+    }
+    
+    public void setSelectedPerforation( int n ) {
+        selectedPerf = n;
+        selectedFrame = -1;
+    }
+    
+    public int getSelectedPerforation() {
+        return selectedPerf;
+    }
+    
+    private int getFrameAt( int x, int y ) {
+        if ( x > stripDrawWidth ) {
+            return -1;
+        }
+        int closestDist = Integer.MAX_VALUE;
+        int perf = -1;
+        for ( int n = 0 ; n < perfCoordY.length && perfCoordY[n] >= 0 ; n++ ) {
+            int d = Math.abs( y-perfCoordY[n] );
+            if (d < closestDist) {
+                perf = n;
+                closestDist = d;
+            }
+        }
+        return perf;
+    }
+    
+    /**
+     Width of the strip drawn
+     */
+    int stripDrawWidth = 0;
+    
+    int[] perfCoordY = new int[50];
+    
+    int selectedPerf = -1;
+    
+    int selectedFrame = -1;
+    
+    int mouseOverPerf = -1;
     
     /**
      Paint the strip.
@@ -84,7 +154,9 @@ public class ScanStripView extends javax.swing.JPanel {
         double scaleH = ((double) compWidth) / ((double) stripWidth);
         double scaleV = ((double) compHeight) / ((double) stripHeight);
         double scale = Math.min( scaleH, scaleV );
-
+        stripDrawWidth = (int) (scale * stripWidth);
+        int stripDrawHeight = (int) (scale * stripHeight);
+        
         Graphics2D g2 = (Graphics2D) ((Graphics2D) g).create();
         g2.setPaint( Color.BLACK );
         g2.fillRect( 0, 0, (int) (scale * stripWidth), (int) (scale * stripHeight) );
@@ -94,13 +166,48 @@ public class ScanStripView extends javax.swing.JPanel {
         // Dimensions of S8 perforation
         int perfHeight = (int) (200 * scale);
         int perfWidth = (int) (160 * scale);
-
+        int frameHeight = (int)(800.0 * scale );
+        
         for ( int n = 0; n < strip.getPerforationCount(); n++ ) {
             Perforation p = strip.getPerforation( n );
             int perfX = (int) ((p.x - 140) * scale);
             int perfY = (int) ((p.y - 100) * scale);
-            g2.setPaint( Color.WHITE );
+            perfCoordY[n] = perfY;
+            g2.setPaint( selectedPerf == n ? Color.RED : Color.WHITE );
             g2.fillRect( perfX, perfY, perfWidth, perfHeight );
+            
+            // Decorate the frame if needed
+
+            
+            int frame = n;
+            int fx = perfX + 2;
+            int fy = perfY - frameHeight / 2;
+            int fw = Math.min( stripDrawWidth - fx - 2, stripDrawWidth * 4 / 3 );
+            int fh = frameHeight;
+            if ( frame >= 0 && selectedFrame == frame ) {
+                // This frame is selected
+                g2.setColor( new Color( 192, 64, 64, 128 ) );
+                g2.fillRect( fx, fy, fw, fh );
+            }
+            if ( strip.getFirstUsable() > frame || strip.getLastUsable() < frame ) {
+                // This frame is not usable (either set as such or incomplete)
+                g2.setColor( Color.RED );
+                g2.drawLine( fx, fy, fx + fw, fy + fh );
+                g2.drawLine( fx+fw, fy, fx, fy + fh );
+            }
+        }
+        perfCoordY[strip.getPerforationCount()] = -1;
+        
+        if ( mouseOverPerf >= 0 ) {
+            // Highlight the area where mouse is
+            int top = (mouseOverPerf == 0) ? 
+                0 : 
+                (perfCoordY[mouseOverPerf] + perfCoordY[mouseOverPerf - 1]) / 2;
+            int bot = perfCoordY[mouseOverPerf + 1] < 0 ? 
+                stripDrawHeight : 
+                (perfCoordY[mouseOverPerf + 1] + perfCoordY[mouseOverPerf]) / 2;
+            g2.setPaint( new Color( 128, 128, 128, 128 ) );
+            g2.fillRect( 0, top, stripDrawWidth, bot - top );
         }
 
     }

@@ -47,7 +47,7 @@ public class Scene implements FrameRangeChangeListener {
      */
     public int getFrameCount() {
         FrameRange lastRange = getLastRange();
-        return lastRange != null ? lastRange.getSceneFirst() + lastRange.getFrameCount() : 0;
+        return lastRange != null ? lastRange.getSceneFirst() + lastRange.getActiveFrameCount() : 0;
     }
 
     /**
@@ -156,7 +156,7 @@ public class Scene implements FrameRangeChangeListener {
         while ( low < high ) {
             int n = (low + high) /2;
             r = frames.get( n );
-            if ( r.getSceneFirst() <= frame && r.getSceneFirst()+r.getFrameCount() > frame ) {
+            if ( r.getSceneFirst() <= frame && r.getSceneFirst()+r.getActiveFrameCount() > frame ) {
                 break;
             }
             if ( frame > r.getSceneFirst() ) {
