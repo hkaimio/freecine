@@ -5,6 +5,9 @@
 
 package fi.kaimio.moviescan.ui;
 
+import com.sun.media.jai.util.SunTileCache;
+import java.awt.Dimension;
+import javax.media.jai.JAI;
 import org.jdesktop.application.SingleFrameApplication;
 
 /**
@@ -13,6 +16,13 @@ import org.jdesktop.application.SingleFrameApplication;
 public class Moviescan extends SingleFrameApplication {
 
     MainWindow mainWindow;
+    
+    @Override
+    protected void initialize( String[] args ) {
+        JAI.setDefaultTileSize( new Dimension( 64, 64 ) );
+        JAI.getDefaultInstance().setTileCache( new SunTileCache( 100 * 1024 * 1024 ) );
+        JAI.getDefaultInstance().getTileScheduler().setParallelism( 4 );
+    }
     
     @Override
     protected void startup() {

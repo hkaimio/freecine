@@ -81,6 +81,9 @@
     <javac destdir="${build-pcapp}" debug="on" classpathref="project.class.path">
         <src path="${src-pcapp}"/>
     </javac>
+    <copy todir="${build-pcapp}">
+        <fileset dir="${src-pcapp}" includes="**/*.properties"/>
+    </copy>
 </target>
 
 <target name="compile-nxj" depends="init"
@@ -174,7 +177,7 @@
     <!-- Create the jar file  -->
     <jar jarfile="${dist}/moviescan-latest/moviescan.jar">
         <manifest>
-            <attribute name="Main-Class" value="fi.kaimio.moviescan.SplitScan"/>
+            <attribute name="Main-Class" value="fi.kaimio.moviescan.ui.Moviescan"/>
             <attribute name="Built-By" value="${user.name}"/>
             <attribute name="Implementation-Version" value="build_${DSTAMP}"/>
             <attribute name="Class-Path" value="${runtime-path}"/>
@@ -186,6 +189,7 @@
         <fileset dir="${build-pcapp}">
             <exclude name="**/Test*.class"/>
         </fileset>
+        
         
         <!-- Include resources into the JAR -->
         <fileset dir="conf" includes="*"/>

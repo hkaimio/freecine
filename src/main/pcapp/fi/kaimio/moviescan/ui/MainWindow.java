@@ -12,6 +12,7 @@ import fi.kaimio.moviescan.Project;
 import java.awt.image.RenderedImage;
 import java.io.File;
 import javax.swing.JOptionPane;
+import org.jdesktop.application.Action;
 
 /**
  
@@ -64,6 +65,7 @@ public class MainWindow extends javax.swing.JFrame {
         jToolBar2 = new javax.swing.JToolBar();
         perfViewModeBtn = new javax.swing.JToggleButton();
         frameViewModeBtn = new javax.swing.JToggleButton();
+        jButton1 = new javax.swing.JButton();
         jMenuBar1 = new javax.swing.JMenuBar();
         jMenu1 = new javax.swing.JMenu();
         jMenu2 = new javax.swing.JMenu();
@@ -222,6 +224,9 @@ public class MainWindow extends javax.swing.JFrame {
         });
         jToolBar2.add(frameViewModeBtn);
 
+        javax.swing.ActionMap actionMap = org.jdesktop.application.Application.getInstance(fi.kaimio.moviescan.ui.Moviescan.class).getContext().getActionMap(MainWindow.class, this);
+        jButton1.setAction(actionMap.get("showScanDlg")); // NOI18N
+
         jMenu1.setText("File");
         jMenuBar1.add(jMenu1);
 
@@ -248,7 +253,8 @@ public class MainWindow extends javax.swing.JFrame {
                         .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addGap(106, 106, 106)))
+                        .addGap(40, 40, 40)
+                        .addComponent(jButton1)))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -267,7 +273,9 @@ public class MainWindow extends javax.swing.JFrame {
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jButton1))))
                 .addContainerGap())
         );
 
@@ -325,6 +333,12 @@ public class MainWindow extends javax.swing.JFrame {
             }
         });
     }
+
+    @Action
+    public void showScanDlg() {
+        ScanProgressDlg dlg = new ScanProgressDlg(this, true );
+        dlg.setVisible(true );
+    }
     
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JSlider blackSlider;
@@ -333,6 +347,7 @@ public class MainWindow extends javax.swing.JFrame {
     private javax.swing.JToggleButton frameViewModeBtn;
     private javax.swing.ButtonGroup frameViewModeGroup;
     private javax.swing.JButton goToFrameBtn;
+    private javax.swing.JButton jButton1;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel4;
     private javax.swing.JLabel jLabel5;

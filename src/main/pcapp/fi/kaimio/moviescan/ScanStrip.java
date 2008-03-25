@@ -160,6 +160,8 @@ public class ScanStrip {
      */
     int lastUsableFrame = -1;
     
+    private ScanAnalysisListener analysisListener;
+    
     /**
      Constructs a new ScanStrip object
      @param img Image of the scan
@@ -172,6 +174,28 @@ public class ScanStrip {
         stripImage = null;
     }
     
+    /**
+     Factory method for creating a strip based on an image. The image is analyzed 
+     and found perforations are added to the created iamge. In addition, caller 
+     can supply an object that implements {@link ScanAnalysisListener} that will be
+     notified of the progress of analysis.
+     <p>
+     Note that analysis will take considerable time!!!
+     
+     @param img image of the scan strip
+     @param l Optional listener
+     @return SCanStrip constructed from the image.
+     */
+    static public ScanStrip create( PlanarImage img, ScanAnalysisListener l ) {
+        ScanStrip s = new ScanStrip( img );
+        s.setAnalysisListener( l );
+        s.findPerforations();
+        return s;
+    }
+    
+    private void setAnalysisListener( ScanAnalysisListener l ) {
+        this.analysisListener = l;
+    }
     /**
      Listeners that will be notified of changes
      */
@@ -442,6 +466,9 @@ public class ScanStrip {
     private void findPerforations() {
         houghTransform();
         filterPerforations();
+        if ( analysisListener != null ) {
+            analysisListener.scanAnalysisComplete( perforations.size() );
+        }
         notifyListeners();
     }
 
@@ -519,6 +546,9 @@ public class ScanStrip {
         List<Point> endCorners = new ArrayList<Point>();
         int y = 0;
         int maxVal = 0;
+        if ( analysisListener != null ) {
+            analysisListener.scanAnalysisProgress( 0, height );
+        }
         while ( !sxIter.nextLineDone() && !syIter.nextLineDone() ) {
             if ( y % 1000 == 0 && y > 0 ) {
                 System.out.println( "" + y + " lines analyzed" );
@@ -604,7 +634,15 @@ public class ScanStrip {
                     endAccum[r][n + width * (y % accumHeight)] = 0;
                 }
             }
+            if ( (y % 100 == 1) &&  analysisListener != null ) {
+                analysisListener.scanAnalysisProgress( y-1, height );
+            }
         }
+
+        if ( analysisListener != null ) {
+            analysisListener.scanAnalysisProgress( height, height );
+        }
+        
         /*
          Find perforations, i.e. pairs of start and end corners that are within
          the specified range from each other
@@ -630,6 +668,7 @@ public class ScanStrip {
                     c.getCentroidX(), c.getCentroidY(), c.getPointCount() ) );
             // imageDataSingleArray[c.getCentroidX()+width*c.getCentroidY()] = (byte) 0xff;
         }
+        
 
     }
 
@@ -874,6 +913,7 @@ public class ScanStrip {
             log.error( "IO error reading strip " + file + ": ", ex );
         }
     }
+
 
 
 }

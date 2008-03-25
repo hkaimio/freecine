@@ -25,4 +25,9 @@ public class SaneDeviceDescriptor extends Structure {
     public String vendor;
     public String model;
     public String type;
+    
+    @Override
+    public String toString( ) {
+        return name;
+    }
 }
