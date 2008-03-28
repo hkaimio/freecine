@@ -10,9 +10,17 @@ import fi.kaimio.moviescan.FrameDescriptor;
 import fi.kaimio.moviescan.FrameIterator;
 import fi.kaimio.moviescan.Project;
 import java.awt.image.RenderedImage;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.io.File;
+import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
+import javax.swing.filechooser.FileFilter;
 import org.jdesktop.application.Action;
+import org.jdesktop.application.Application;
+import org.jdesktop.application.ApplicationContext;
+import org.jdesktop.application.Resource;
+import org.jdesktop.application.ResourceMap;
 
 /**
  
@@ -20,9 +28,9 @@ import org.jdesktop.application.Action;
  */
 public class MainWindow extends javax.swing.JFrame {
     
-    Project prj;
+    Project prj = null;
     
-    FrameIterator projectIter;
+    FrameIterator projectIter = null;
     
     ScanStripView stripViewer;
     
@@ -32,10 +40,67 @@ public class MainWindow extends javax.swing.JFrame {
     public MainWindow() {
         initComponents();
         stripViewer = (ScanStripView) stripView;
-        prj = Project.getProject( new File( "/home/harri/s8/tuhkimo" ) );
-        projectIter = (FrameIterator) prj.iterator();
+        addPropertyChangeListener( new PropertyChangeListener() {
+
+            public void propertyChange( PropertyChangeEvent ev ) {
+                System.err.println( "Peroperty " + ev.getPropertyName() + " " + ev.getOldValue() + "->" + ev.getNewValue() );
+            }
+        });
     }
     
+    /**
+     Set the project edited by this control
+     @param p The new project
+     */
+    public void setProject( Project p ) {
+        Project oldPrj = prj;
+        boolean hadNextFrame = getHasNextFrame();
+        boolean hadPrevFrame = getHasPrevFrame();
+        this.prj = p;
+        projectIter = (FrameIterator) prj.iterator();
+        
+        if ( projectIter.hasNext() ) {
+            nextFrame();
+        }
+                
+        firePropertyChange("project", oldPrj, prj);
+        firePropertyChange("projectOpen", oldPrj != null, prj != null );
+        firePropertyChange("hasNextFrame", hadNextFrame, getHasNextFrame() );
+        firePropertyChange("hasPrevFrame", hadPrevFrame, getHasPrevFrame() );
+    }
+    
+    /**
+     Get current project
+     @return
+     */
+    public Project getProject() {
+        return prj;
+    }
+    
+    /**
+     Utility method to check whether a project is currently open
+     @return <code>true</code> if a project is open
+     */
+    public boolean isProjectOpen() {
+        return getProject() != null;
+    }
+    
+    /**
+     Is there a frame in the project after the current one?
+     @return
+     */
+    public boolean getHasNextFrame() {
+        return ( prj != null && projectIter.hasNext() );
+    }
+
+    /**
+     Is there a frame in the project before current one?
+     @return
+     */
+    public boolean getHasPrevFrame() {
+        return (prj != null && projectIter.hasPrev());
+    }
+
     /** This method is called from within the constructor to
      initialize the form.
      WARNING: Do NOT modify this code. The content of this method is
@@ -58,6 +123,7 @@ public class MainWindow extends javax.swing.JFrame {
         frameNumField = new javax.swing.JTextField();
         goToFrameBtn = new javax.swing.JButton();
         nextFrameBtn = new javax.swing.JButton();
+        jButton2 = new javax.swing.JButton();
         jSeparator1 = new javax.swing.JSeparator();
         jMenuBar1 = new javax.swing.JMenuBar();
         jMenu1 = new javax.swing.JMenu();
@@ -66,9 +132,16 @@ public class MainWindow extends javax.swing.JFrame {
         perfViewModeBtn = new javax.swing.JToggleButton();
         frameViewModeBtn = new javax.swing.JToggleButton();
         jButton1 = new javax.swing.JButton();
-        jMenuBar1 = new javax.swing.JMenuBar();
-        jMenu1 = new javax.swing.JMenu();
-        jMenu2 = new javax.swing.JMenu();
+        jMenuBar2 = new javax.swing.JMenuBar();
+        fileMenu = new javax.swing.JMenu();
+        newProjectItem = new javax.swing.JMenuItem();
+        openProjectItem = new javax.swing.JMenuItem();
+        jSeparator2 = new javax.swing.JSeparator();
+        exitItem = new javax.swing.JMenuItem();
+        editMenu = new javax.swing.JMenu();
+        viewMenu = new javax.swing.JMenu();
+        nextFrameItem = new javax.swing.JMenuItem();
+        prevFrameItem = new javax.swing.JMenuItem();
 
         jToolBar1.setRollover(true);
 
@@ -84,7 +157,7 @@ public class MainWindow extends javax.swing.JFrame {
         );
         framePaneLayout.setVerticalGroup(
             framePaneLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 381, Short.MAX_VALUE)
+            .addGap(0, 409, Short.MAX_VALUE)
         );
 
         javax.swing.GroupLayout stripViewLayout = new javax.swing.GroupLayout(stripView);
@@ -95,7 +168,7 @@ public class MainWindow extends javax.swing.JFrame {
         );
         stripViewLayout.setVerticalGroup(
             stripViewLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 460, Short.MAX_VALUE)
+            .addGap(0, 488, Short.MAX_VALUE)
         );
 
         jPanel1.setBorder(javax.swing.BorderFactory.createTitledBorder("Colors"));
@@ -138,12 +211,12 @@ public class MainWindow extends javax.swing.JFrame {
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
                 .addComponent(jLabel4)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(whiteSlider, javax.swing.GroupLayout.DEFAULT_SIZE, 48, Short.MAX_VALUE)
+                .addComponent(whiteSlider, javax.swing.GroupLayout.DEFAULT_SIZE, 44, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jLabel5)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(blackSlider, javax.swing.GroupLayout.PREFERRED_SIZE, 49, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(262, 262, 262))
+                .addGap(268, 268, 268))
         );
 
         jPanel2.setBorder(javax.swing.BorderFactory.createEmptyBorder(1, 1, 1, 1));
@@ -157,12 +230,10 @@ public class MainWindow extends javax.swing.JFrame {
             }
         });
 
-        nextFrameBtn.setText("Next");
-        nextFrameBtn.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                nextFrameBtnActionPerformed(evt);
-            }
-        });
+        javax.swing.ActionMap actionMap = org.jdesktop.application.Application.getInstance(fi.kaimio.moviescan.ui.Moviescan.class).getContext().getActionMap(MainWindow.class, this);
+        nextFrameBtn.setAction(actionMap.get("nextFrame")); // NOI18N
+
+        jButton2.setAction(actionMap.get("prevFrame")); // NOI18N
 
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
@@ -176,8 +247,10 @@ public class MainWindow extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(goToFrameBtn)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jButton2)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(nextFrameBtn)
-                .addContainerGap(390, Short.MAX_VALUE))
+                .addContainerGap(340, Short.MAX_VALUE))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -185,6 +258,7 @@ public class MainWindow extends javax.swing.JFrame {
                 .addComponent(jLabel1)
                 .addComponent(frameNumField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addComponent(goToFrameBtn)
+                .addComponent(jButton2)
                 .addComponent(nextFrameBtn))
         );
 
@@ -193,8 +267,6 @@ public class MainWindow extends javax.swing.JFrame {
 
         jMenu2.setText("Edit");
         jMenuBar1.add(jMenu2);
-
-        setJMenuBar(jMenuBar1);
 
         jToolBar2.setFloatable(false);
         jToolBar2.setRollover(true);
@@ -224,16 +296,36 @@ public class MainWindow extends javax.swing.JFrame {
         });
         jToolBar2.add(frameViewModeBtn);
 
-        javax.swing.ActionMap actionMap = org.jdesktop.application.Application.getInstance(fi.kaimio.moviescan.ui.Moviescan.class).getContext().getActionMap(MainWindow.class, this);
         jButton1.setAction(actionMap.get("showScanDlg")); // NOI18N
 
-        jMenu1.setText("File");
-        jMenuBar1.add(jMenu1);
+        fileMenu.setText("File");
 
-        jMenu2.setText("Edit");
-        jMenuBar1.add(jMenu2);
+        newProjectItem.setAction(actionMap.get("createNewProject")); // NOI18N
+        fileMenu.add(newProjectItem);
 
-        setJMenuBar(jMenuBar1);
+        openProjectItem.setAction(actionMap.get("openProject")); // NOI18N
+        fileMenu.add(openProjectItem);
+        fileMenu.add(jSeparator2);
+
+        exitItem.setAction(actionMap.get("quit")); // NOI18N
+        fileMenu.add(exitItem);
+
+        jMenuBar2.add(fileMenu);
+
+        editMenu.setText("Edit");
+        jMenuBar2.add(editMenu);
+
+        viewMenu.setText("View");
+
+        nextFrameItem.setAction(actionMap.get("nextFrame")); // NOI18N
+        viewMenu.add(nextFrameItem);
+
+        prevFrameItem.setAction(actionMap.get("prevFrame")); // NOI18N
+        viewMenu.add(prevFrameItem);
+
+        jMenuBar2.add(viewMenu);
+
+        setJMenuBar(jMenuBar2);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -282,22 +374,53 @@ public class MainWindow extends javax.swing.JFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    private void nextFrameBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_nextFrameBtnActionPerformed
+    
+    /**
+     Move to the next frame in the project
+     */
+    @Action(enabledProperty = "hasNextFrame")
+    public void nextFrame() {
         if ( projectIter.hasNext() ) {
+            boolean hadNextFrame = getHasNextFrame();
+            boolean hadPrevFrame = getHasPrevFrame();
+
             FrameDescriptor d = projectIter.next();
             currentImage = d.getFrame();
-            frameNumField.setText( Integer.toString( projectIter.getCurrentFrameNum() ));
-            ((FrameView)framePane).setFrame( d );
+            frameNumField.setText( Integer.toString( projectIter.getCurrentFrameNum() ) );
+            ((FrameView) framePane).setFrame( d );
             stripViewer.setStrip( d.getStrip() );
             stripViewer.setSelectedFrame( d.getStripFrameNum() );
+            firePropertyChange( "hasNextFrame", hadNextFrame, getHasNextFrame() );
+            firePropertyChange( "hasPrevFrame", hadPrevFrame, getHasPrevFrame() );
         }
-}//GEN-LAST:event_nextFrameBtnActionPerformed
-
+    }
+    
+    
+    
+    /**
+     Move to the previous frame in the project
+     */
+    @Action( enabledProperty="hasPrevFrame" )
+    public void prevFrame() {
+        if ( projectIter.hasPrev() ) {
+            boolean hadNextFrame = getHasNextFrame();
+            boolean hadPrevFrame = getHasPrevFrame();
+            FrameDescriptor d = projectIter.prev();
+            currentImage = d.getFrame();
+            frameNumField.setText( Integer.toString( projectIter.getCurrentFrameNum() ) );
+            ((FrameView) framePane).setFrame( d );
+            stripViewer.setStrip( d.getStrip() );
+            stripViewer.setSelectedFrame( d.getStripFrameNum() );
+            firePropertyChange( "hasNextFrame", hadNextFrame, getHasNextFrame() );
+            firePropertyChange( "hasPrevFrame", hadPrevFrame, getHasPrevFrame() );
+        }
+    }
+    
     private void goToFrameBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_goToFrameBtnActionPerformed
         try {
             int frame = Integer.parseInt( frameNumField.getText() );
             projectIter.setNextFrameNum( frame );
-            nextFrameBtnActionPerformed( evt );
+            nextFrame();
         } catch ( NumberFormatException e ) {
             JOptionPane.showMessageDialog( this,
                     "Frame number must be number", "Incorrect frame number",
@@ -334,34 +457,118 @@ public class MainWindow extends javax.swing.JFrame {
         });
     }
 
-    @Action
+    @Action( enabledProperty="projectOpen" )
     public void showScanDlg() {
-        ScanProgressDlg dlg = new ScanProgressDlg(this, true );
+        ScanProgressDlg dlg = new ScanProgressDlg(this, prj, true );
         dlg.setVisible(true );
     }
+
     
+    /**
+     Let user choose a directory for a new project and create it.
+     */
+    @Action
+    public void createNewProject() {
+        JFileChooser chooser = new JFileChooser();
+        ApplicationContext ctxt = Application.getInstance().getContext();
+        ResourceMap resource = ctxt.getResourceMap( this.getClass() );
+        chooser.setDialogTitle( resource.getString("newProjectDlg.title" ) );
+        chooser.setFileSelectionMode( JFileChooser.DIRECTORIES_ONLY );
+        if ( chooser.showDialog( this, resource.getString("newProjectDlg.okBtn.text" ) ) == JFileChooser.APPROVE_OPTION ) {
+            File projectDir = chooser.getSelectedFile();
+            projectDir.mkdirs();
+            if ( new File( projectDir, "project.xml" ).exists() ) {
+                JOptionPane.showMessageDialog( this, "Project exists already", 
+                        "Existing project", JOptionPane.ERROR_MESSAGE );
+                return;
+            }
+            setProject( Project.getProject(projectDir) );
+        }
+    }
+
+    /**
+     Let the user choose a project and open it.
+     */
+    @Action
+    public void openProject() {
+        JFileChooser chooser = new JFileChooser();
+        ApplicationContext ctxt = Application.getInstance().getContext();
+        ResourceMap resource = ctxt.getResourceMap( this.getClass() );
+        chooser.setDialogTitle( resource.getString( "openProjectDlg.title" ) );
+
+        chooser.setFileSelectionMode( JFileChooser.FILES_AND_DIRECTORIES );
+        chooser.setFileFilter( new FileFilter() {
+
+            public boolean accept( File f ) {
+                if ( f.isDirectory() ) {
+                    return true;
+                }
+                if ( f.getName().equals( "project.xml" ) ) {
+                    return true;
+                }
+                return false;
+            }
+
+            @Override
+            public String getDescription() {
+                return "Project files";
+            }
+        } );
+        if ( chooser.showDialog( this, 
+                resource.getString("openProjectDlg.okBtn.text" ) ) 
+                == JFileChooser.APPROVE_OPTION ) {
+            File projectDir = chooser.getSelectedFile();
+
+            if ( projectDir.isDirectory() ) {
+                if ( !new File( projectDir, "project.xml" ).exists() ) {
+                    JOptionPane.showMessageDialog( this,
+                            projectDir.getName() + " is not a project directory",
+                            "No project file", JOptionPane.ERROR_MESSAGE );
+
+                    return;
+
+                }
+            } else {
+                projectDir = projectDir.getParentFile();
+            }
+            setProject( Project.getProject(projectDir) );
+        }
+    }
+
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JSlider blackSlider;
+    private javax.swing.JMenu editMenu;
+    private javax.swing.JMenuItem exitItem;
+    private javax.swing.JMenu fileMenu;
     private javax.swing.JTextField frameNumField;
     private javax.swing.JPanel framePane;
     private javax.swing.JToggleButton frameViewModeBtn;
     private javax.swing.ButtonGroup frameViewModeGroup;
     private javax.swing.JButton goToFrameBtn;
     private javax.swing.JButton jButton1;
+    private javax.swing.JButton jButton2;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel4;
     private javax.swing.JLabel jLabel5;
     private javax.swing.JMenu jMenu1;
     private javax.swing.JMenu jMenu2;
     private javax.swing.JMenuBar jMenuBar1;
+    private javax.swing.JMenuBar jMenuBar2;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JSeparator jSeparator1;
+    private javax.swing.JSeparator jSeparator2;
     private javax.swing.JToolBar jToolBar1;
     private javax.swing.JToolBar jToolBar2;
+    private javax.swing.JMenuItem newProjectItem;
     private javax.swing.JButton nextFrameBtn;
+    private javax.swing.JMenuItem nextFrameItem;
+    private javax.swing.JMenuItem openProjectItem;
     private javax.swing.JToggleButton perfViewModeBtn;
+    private javax.swing.JMenuItem prevFrameItem;
     private javax.swing.JPanel stripView;
+    private javax.swing.JMenu viewMenu;
     private javax.swing.JSlider whiteSlider;
     // End of variables declaration//GEN-END:variables
     

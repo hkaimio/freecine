@@ -4,6 +4,7 @@
  */
 package fi.kaimio.moviescan.ui;
 
+import fi.kaimio.moviescan.Project;
 import fi.kaimio.moviescan.ScanAnalysisListener;
 import fi.kaimio.moviescan.ScanStrip;
 import fi.kaimio.sane.FixedPointNumber;
@@ -19,6 +20,7 @@ import java.awt.image.DataBufferUShort;
 import java.awt.image.Raster;
 import java.awt.image.RenderedImage;
 import java.awt.image.SampleModel;
+import java.io.IOException;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.JAI;
 import javax.media.jai.PlanarImage;
@@ -36,16 +38,19 @@ public class ScanTask extends Task<Void, Void> implements ScanAnalysisListener {
 
     private SaneDevice dev;
     private Rectangle scanArea;
+    private Project prj;
 
     /**
      Creates a new ScanTask object
      @param dev The scanner that will be used
      @param scanArea Scan area 
+     @param prj the project in which scanned frames are added
      */
-    public ScanTask( SaneDevice dev, Rectangle scanArea ) {
+    public ScanTask( SaneDevice dev, Rectangle scanArea, Project prj ) {
         super( Application.getInstance() );
         this.dev = dev;
         this.scanArea = scanArea;
+        this.prj = prj;
     }
     /**
     Width of the tiles used for storing the scanned iamge
@@ -61,12 +66,40 @@ public class ScanTask extends Task<Void, Void> implements ScanAnalysisListener {
         return image;
     }
     
-    protected Void doInBackground() throws SaneException {
+    int stripCount = 0;
+
+    /**
+     Main loop for this background task. Loop until error happens or the task 
+     is cancelled
+     @return
+     @throws fi.kaimio.sane.SaneException If scanning fails
+     @throws java.io.IOException If saving project changes fails
+     */
+    protected Void doInBackground() throws SaneException, IOException {
 
         initScanner();
-        PlanarImage img = scan();
-        img = TransposeDescriptor.create(img, TransposeDescriptor.ROTATE_90, null);
-        ScanStrip strip = ScanStrip.create( img, this );
+        while ( true ) {
+            PlanarImage img = scan();
+            img = TransposeDescriptor.create( img, TransposeDescriptor.ROTATE_90, null );
+            if ( isCancelled() ) {
+                img.dispose();
+                break;
+            }
+            ScanStrip strip = ScanStrip.create( img, this );
+            if ( isCancelled() ) {
+                strip.dispose();
+                img.dispose();
+                break;
+            }
+            prj.addScanStrip( strip );
+            prj.save();
+            strip.dispose();
+            img.dispose();
+            System.gc();
+            System.gc();
+            System.gc();
+            stripCount++;   
+        }
         return null;
     }
     
@@ -142,7 +175,7 @@ public class ScanTask extends Task<Void, Void> implements ScanAnalysisListener {
         int line = 0;
         int totalLines = params.getLines();
         setProgress( line, 0, totalLines );
-        message( "scanProgressMessage", line, totalLines );
+        message( "scanProgressMessage", stripCount, line, totalLines );
         while ( line < totalLines ) {
             int linesLeft = params.getLines() - line;
             int samplesLeft = linesLeft * params.getBytesPerLine() * 8 / params.getDepth();
@@ -153,7 +186,7 @@ public class ScanTask extends Task<Void, Void> implements ScanAnalysisListener {
             image.setData( raster );
             line += TILE_HEIGHT;
             setProgress(line < totalLines ? line : totalLines, 0, totalLines);
-            message( "scanProgressMessage", 
+            message( "scanProgressMessage", stripCount, 
                     line < totalLines ? line : totalLines, totalLines );
         }
 
@@ -167,7 +200,7 @@ public class ScanTask extends Task<Void, Void> implements ScanAnalysisListener {
      @param totalLines Total nubmer of lines
      */
     public void scanAnalysisProgress( int currentLine, int totalLines ) {
-        message( "analysisProgressMessage", currentLine, totalLines );
+        message( "analysisProgressMessage", stripCount, currentLine, totalLines );
         setProgress( currentLine, 0, totalLines);
     }
 
@@ -177,7 +210,7 @@ public class ScanTask extends Task<Void, Void> implements ScanAnalysisListener {
      @param perfCount Number of perforations found
      */
     public void scanAnalysisComplete( int perfCount ) {
-        message( "analysisCompleteMessage", perfCount );
+        message( "analysisCompleteMessage", stripCount, perfCount );
     }
     
 }

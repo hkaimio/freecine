@@ -83,8 +83,13 @@ public class Project implements Iterable<FrameDescriptor> {
                 log.error( "Parse error reading " + projectFile.getPath() + ": " + e.getMessage() );                
             }
         } else {
-            dir.mkdirs();
-            ret = new Project( dir );
+            try {
+                dir.mkdirs();
+                ret = new Project( dir );
+                ret.save();
+            } catch ( IOException ex ) {
+                return null;
+            }
         }
         return ret;
     }
@@ -104,9 +109,11 @@ public class Project implements Iterable<FrameDescriptor> {
             String name = String.format( "scan_%04d", num );
             // Save the image
             RenderedImage img = strip.stripImage;
-            saveImage( img, new File( scanDir, name + ".tif" ) );
+            File imgFile = new File( scanDir, name + ".tif" );
+            saveImage( img, imgFile );
             saveStripInfo( strip, new File( scanDir, name + ".xml" ) );
             strip.setName( name );
+            strip.setFile( imgFile );
         }
         loadedStrips.put( strip.getName(), strip );
         scene.addFrames( strip, 0, strip.getFrameCount() );

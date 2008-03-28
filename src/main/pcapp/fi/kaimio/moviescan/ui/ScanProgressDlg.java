@@ -9,6 +9,7 @@ package fi.kaimio.moviescan.ui;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
+import fi.kaimio.moviescan.Project;
 import fi.kaimio.sane.Sane;
 import fi.kaimio.sane.SaneDevice;
 import fi.kaimio.sane.SaneDeviceDescriptor;
@@ -22,17 +23,28 @@ import java.util.ArrayList;
 import java.util.List;
 import org.jdesktop.application.Action;
 import org.jdesktop.application.Task;
+import org.jdesktop.application.TaskEvent;
+import org.jdesktop.application.TaskListener;
 
 /**
  Dialog for controlling the scanning
  */
 public class ScanProgressDlg extends javax.swing.JDialog {
     
-    /** Creates new form ScanProgressDlg */
-    public ScanProgressDlg(java.awt.Frame parent, boolean modal) {
+    Project prj; 
+    
+    /**
+     Create a new ScanProgressDlg
+     @param parent Paren window for the dialog
+     @param prj Project into which the scanned frames are added
+     @param modal Is this a model dialog?
+     */
+    public ScanProgressDlg(java.awt.Frame parent, Project prj, boolean modal) {
         super(parent, modal);
+        this.prj = prj;
         initComponents();
         fillScanners();
+        
     }
 
     /**
@@ -59,6 +71,8 @@ public class ScanProgressDlg extends javax.swing.JDialog {
         scannerCombo = new javax.swing.JComboBox();
         jLabel1 = new javax.swing.JLabel();
         scannerInfoLabel = new javax.swing.JLabel();
+        stopScanBtn = new javax.swing.JButton();
+        closeBtn = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setName("Form"); // NOI18N
@@ -87,6 +101,12 @@ public class ScanProgressDlg extends javax.swing.JDialog {
         scannerInfoLabel.setText(resourceMap.getString("scannerInfoLabel.text")); // NOI18N
         scannerInfoLabel.setName("scannerInfoLabel"); // NOI18N
 
+        stopScanBtn.setAction(actionMap.get("stopScan")); // NOI18N
+        stopScanBtn.setName("stopScanBtn"); // NOI18N
+
+        closeBtn.setAction(actionMap.get("closeDlg")); // NOI18N
+        closeBtn.setName("closeBtn"); // NOI18N
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -96,13 +116,18 @@ public class ScanProgressDlg extends javax.swing.JDialog {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(messageLabel, javax.swing.GroupLayout.DEFAULT_SIZE, 743, Short.MAX_VALUE)
                     .addComponent(progressBar, javax.swing.GroupLayout.DEFAULT_SIZE, 743, Short.MAX_VALUE)
-                    .addComponent(jButton1, javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(jLabel1)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(scannerCombo, javax.swing.GroupLayout.PREFERRED_SIZE, 247, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(scannerInfoLabel, javax.swing.GroupLayout.DEFAULT_SIZE, 419, Short.MAX_VALUE)))
+                        .addComponent(scannerInfoLabel, javax.swing.GroupLayout.DEFAULT_SIZE, 419, Short.MAX_VALUE))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                        .addComponent(jButton1)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(stopScanBtn)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(closeBtn)))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -118,7 +143,10 @@ public class ScanProgressDlg extends javax.swing.JDialog {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(progressBar, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 19, Short.MAX_VALUE)
-                .addComponent(jButton1)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(closeBtn)
+                    .addComponent(stopScanBtn)
+                    .addComponent(jButton1))
                 .addContainerGap())
         );
 
@@ -163,7 +191,7 @@ public class ScanProgressDlg extends javax.swing.JDialog {
      Start a background task that does the scanning & image analysis
      @return
      */
-    @Action
+    @Action ( block=Task.BlockingScope.ACTION )
     public Task startScan() {
         SaneDevice dev = null;
         try {
@@ -172,7 +200,7 @@ public class ScanProgressDlg extends javax.swing.JDialog {
         } catch ( SaneException e ) {
 
         }
-        scanTask = new ScanTask( dev, null );
+        scanTask = new ScanTask( dev, null, prj );
         scanTask.addPropertyChangeListener( new PropertyChangeListener() {
 
             public void propertyChange( PropertyChangeEvent evt ) {
@@ -183,7 +211,16 @@ public class ScanProgressDlg extends javax.swing.JDialog {
                 } 
             }
         });
+        
+        scanTask.addTaskListener( new TaskListener.Adapter<Void, Void>() {
+            @Override
+            public void finished( TaskEvent<Void> arg0 ) {
+                setScanOngoing( false );
+            }
+            
+        });
 
+        setScanOngoing( true );
         return scanTask;
     }
 
@@ -214,14 +251,42 @@ public class ScanProgressDlg extends javax.swing.JDialog {
 
         return scanners;
     }
+
+    @Action(enabledProperty = "scanOngoing")
+    public void stopScan() {
+        scanTask.cancel( false );
+    }
     
+    private boolean scanOngoing = false;
+    public boolean isScanOngoing() {
+        return scanOngoing;
+    }
+
+    public void setScanOngoing(boolean b) {
+        boolean old = isScanOngoing();
+        this.scanOngoing = b;
+        firePropertyChange("scanOngoing", old, isScanOngoing());
+        firePropertyChange("okToClose", !old, !isScanOngoing());
+    }
+    
+    public boolean isOkToClose() {
+        return !isScanOngoing();
+    }
+
+    @Action( enabledProperty="okToClose" )
+    public void closeDlg() {
+        setVisible( false );
+    }
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton closeBtn;
     private javax.swing.JButton jButton1;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel messageLabel;
     private javax.swing.JProgressBar progressBar;
     private javax.swing.JComboBox scannerCombo;
     private javax.swing.JLabel scannerInfoLabel;
+    private javax.swing.JButton stopScanBtn;
     // End of variables declaration//GEN-END:variables
     
 }

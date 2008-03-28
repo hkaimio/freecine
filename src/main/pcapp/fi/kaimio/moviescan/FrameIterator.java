@@ -49,11 +49,26 @@ public class FrameIterator implements Iterator<FrameDescriptor> {
         currentStrip = null;
     }
 
-    
+    /**
+     Ís there a frame after the current frame?
+     @return
+     */
     public boolean hasNext() {
         return (sceneFrame+1) < currentScene.getFrameCount();
     }
+    
+    /**
+     Is there a frame before the current frame?
+     @return
+     */
+    public boolean hasPrev() {
+        return sceneFrame > 0;
+    }
 
+    /**
+     Move iterator to the next frame
+     @return Next frame
+     */
     public FrameDescriptor next() {
         if ( nextFrameNum >= 0 ) {
             sceneFrame = nextFrameNum;
@@ -74,6 +89,26 @@ public class FrameIterator implements Iterator<FrameDescriptor> {
         return d;
     }
 
+    /**
+     Move iterator to the previous frame
+     @return Previous frame
+     */
+    public FrameDescriptor prev() {
+        
+        sceneFrame--;
+
+        ScanStrip nextStrip = currentScene.getFrameStrip( sceneFrame );
+        if ( nextStrip != currentStrip ) {
+            if ( currentStrip != null ) {
+                currentStrip.releaseStripImage();
+            }
+            nextStrip.reserveStripImage();
+            currentStrip = nextStrip;
+        }
+        FrameDescriptor d = new FrameDescriptor( currentStrip, currentScene.getStripFrameNum( sceneFrame ) );
+        return d;
+    }
+
     public void remove() {
         throw new UnsupportedOperationException( "Not supported yet." );
     }
@@ -82,6 +117,10 @@ public class FrameIterator implements Iterator<FrameDescriptor> {
         return sceneFrame;
     }
     
+    /**
+     Move the iterator so that calling next() will return a certain frame
+     @param n 
+     */
     public void setNextFrameNum( int n ) {
         nextFrameNum = n;
     }
