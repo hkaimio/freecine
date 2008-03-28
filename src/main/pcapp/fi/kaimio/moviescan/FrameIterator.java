@@ -5,7 +5,6 @@
 
 package fi.kaimio.moviescan;
 
-import java.awt.image.RenderedImage;
 import java.util.Iterator;
 
 /**

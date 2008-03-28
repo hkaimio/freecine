@@ -136,6 +136,7 @@ public class MainWindow extends javax.swing.JFrame {
         fileMenu = new javax.swing.JMenu();
         newProjectItem = new javax.swing.JMenuItem();
         openProjectItem = new javax.swing.JMenuItem();
+        jMenuItem1 = new javax.swing.JMenuItem();
         jSeparator2 = new javax.swing.JSeparator();
         exitItem = new javax.swing.JMenuItem();
         editMenu = new javax.swing.JMenu();
@@ -305,6 +306,9 @@ public class MainWindow extends javax.swing.JFrame {
 
         openProjectItem.setAction(actionMap.get("openProject")); // NOI18N
         fileMenu.add(openProjectItem);
+
+        jMenuItem1.setAction(actionMap.get("showSaveFrameDlg")); // NOI18N
+        fileMenu.add(jMenuItem1);
         fileMenu.add(jSeparator2);
 
         exitItem.setAction(actionMap.get("quit")); // NOI18N
@@ -446,17 +450,10 @@ public class MainWindow extends javax.swing.JFrame {
         ((FrameView) framePane).setMode( FrameViewMode.DRAW_PERFORATION );
     }//GEN-LAST:event_perfViewModeBtnActionPerformed
     
-    /**
-     @param args the command line arguments
-     */
-    public static void main(String args[]) {
-        java.awt.EventQueue.invokeLater(new Runnable() {
-            public void run() {
-                new MainWindow().setVisible(true);
-            }
-        });
-    }
 
+    /**
+     Show the {@link ScanProgressDlg} dialog
+     */
     @Action( enabledProperty="projectOpen" )
     public void showScanDlg() {
         ScanProgressDlg dlg = new ScanProgressDlg(this, prj, true );
@@ -535,6 +532,15 @@ public class MainWindow extends javax.swing.JFrame {
         }
     }
 
+    /**
+     Show the {@link SaveFramesDlg}
+     */
+    @Action
+    public void showSaveFrameDlg() {
+        SaveFramesDlg dlg = new SaveFramesDlg( this, prj, true );
+        dlg.setVisible( true );
+    }
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JSlider blackSlider;
@@ -555,6 +561,7 @@ public class MainWindow extends javax.swing.JFrame {
     private javax.swing.JMenu jMenu2;
     private javax.swing.JMenuBar jMenuBar1;
     private javax.swing.JMenuBar jMenuBar2;
+    private javax.swing.JMenuItem jMenuItem1;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JSeparator jSeparator1;
