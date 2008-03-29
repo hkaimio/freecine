@@ -22,6 +22,11 @@
 <property name="lib"  location="lib"/>
 <property name="basedir" location="."/>
 
+<!-- Executable main classes -->
+<property name="pcapp-main-class" value="org.freecine.swingui.Moviescan"/>
+<property name="nxj-main-class" value="org.freecine.nxj.FilmMover"/>
+<property name="nxj-binary" value="Freecine-mover"/>
+
 <property file="build.properties"/> 
 <property file="nxj_build.properties"/> 
 
@@ -103,7 +108,7 @@
     </javac>
 </target>
 
-  <target name="link-nxj" depends="compile"
+  <target name="link-nxj" depends="compile-nxj"
         description="link the binary for NXJ" >
     <!-- Link the binary and create a signature file -->
     <java classname="js.tinyvm.TinyVM">
@@ -111,7 +116,7 @@
       <arg path="${nxj.classes.home}/lib/classes.jar:${build-nxj}" /> 
       <arg value="--writeorder" />
       <arg value="LE" />
-      <arg value="fi.kaimio.moviescan.nxj.FilmMover"/>
+      <arg value="${nxj-main-class}"/>
       <arg value="-o"/>
       <arg value="${nxj-binary}"/>
       <arg value="-v"/>
@@ -177,7 +182,7 @@
     <!-- Create the jar file  -->
     <jar jarfile="${dist}/moviescan-latest/moviescan.jar">
         <manifest>
-            <attribute name="Main-Class" value="fi.kaimio.moviescan.ui.Moviescan"/>
+            <attribute name="Main-Class" value="${pcapp-main-class}"/>
             <attribute name="Built-By" value="${user.name}"/>
             <attribute name="Implementation-Version" value="build_${DSTAMP}"/>
             <attribute name="Class-Path" value="${runtime-path}"/>
@@ -312,7 +317,7 @@
 
 
 <target name="run" depends="dist" description="Run Moviescan">
-    <java fork="true" classname="fi.kaimio.moviescan.SplitScan">
+    <java fork="true" classname="${pcapp-main-class}">
         <!-- Use large enough heap to fit also big images -->
         <jvmarg value="-Xmx${heap.max_size}M"/>
         <jvmarg value="-Djava.library.path=${jlibnxt.path}"/>
@@ -329,7 +334,7 @@
         <sourcepath refid="debug.sourcepath"/> 
     </nbjpdastart>
 
-    <java fork="true" classname="fi.kaimio.moviescan.ui.Moviescan">
+    <java fork="true" classname="${pcapp-main-class}">
         <jvmarg value="-Xmx${heap.max_size}M"/>
         <jvmarg value="-Djava.library.path=${jlibnxt.path}"/>
         <!--<jvmarg value="-XX:+PrintGCDetails"/>-->
@@ -367,7 +372,7 @@
         <classpath refid="project.class.path"/>
     </nbprofiledirect>
     <!-- Start application. Use basically the same command as for running the application -->
-    <java fork="true" classname="fi.kaimio.moviescan.SplitScan" jvm="${profiler.info.jvm}">
+    <java fork="true" classname="${pcapp-main-class}" jvm="${profiler.info.jvm}">
         <!-- Use large enough heap to fit also big images -->
         <jvmarg value="-Xmx${heap.max_size}M"/>
         <jvmarg value="${run.jvmargs}"/>

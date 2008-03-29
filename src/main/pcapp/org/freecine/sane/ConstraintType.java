@@ -1,4 +1,4 @@
-package fi.kaimio.sane;
+package org.freecine.sane;
 
 
 public enum ConstraintType {

@@ -3,9 +3,9 @@
  * and open the template in the editor.
  */
 
-package fi.kaimio.moviescan.nxj;
+package org.freecine.nxj;
 
-import fi.kaimio.moviescan.common.FilmMoverCommand;
+import org.freecine.common.FilmMoverCommand;
 import lejos.nxt.*;
 import java.io.*;
 import lejos.nxt.comm.*;

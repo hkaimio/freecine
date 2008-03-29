@@ -3,7 +3,7 @@
  * and open the template in the editor.
  */
 
-package fi.kaimio.moviescan.common;
+package org.freecine.common;
 
 /**
  Constants for communication between PC and NXT

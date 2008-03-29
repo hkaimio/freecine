@@ -5,9 +5,6 @@
 
 package org.freecine.filmscan;
 
-import org.freecine.filmscan.ScanStrip;
-import org.freecine.filmscan.Project;
-import org.freecine.filmscan.ProjectRuleSet;
 import static org.testng.AssertJUnit.*;
 import java.io.File;
 import java.io.IOException;

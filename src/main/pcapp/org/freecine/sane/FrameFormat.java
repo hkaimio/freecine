@@ -3,7 +3,7 @@
  * and open the template in the editor.
  */
 
-package fi.kaimio.sane;
+package org.freecine.sane;
 
 /**
  *

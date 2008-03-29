@@ -4,7 +4,7 @@
 
 package org.freecine.filmscan;
 
-import fi.kaimio.moviescan.common.FilmMoverCommand;
+import org.freecine.common.FilmMoverCommand;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;

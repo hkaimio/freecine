@@ -3,7 +3,7 @@
  * and open the template in the editor.
  */
 
-package fi.kaimio.moviescan.nxj;
+package org.freecine.nxj;
 
 import lejos.nxt.LCD;
 import lejos.nxt.Motor;

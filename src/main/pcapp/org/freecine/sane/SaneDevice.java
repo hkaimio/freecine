@@ -3,11 +3,11 @@
  * and open the template in the editor.
  */
 
-package fi.kaimio.sane;
+package org.freecine.sane;
 
-import fi.kaimio.sane.SaneException;
-import fi.kaimio.sane.SaneOptionDescriptor;
-import fi.kaimio.sane.ScanParameter;
+import org.freecine.sane.SaneException;
+import org.freecine.sane.SaneOptionDescriptor;
+import org.freecine.sane.ScanParameter;
 import com.sun.jna.Memory;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
