@@ -5,7 +5,6 @@
 
 package fi.kaimio.sane;
 
-import fi.kaimio.moviescan.*;
 import fi.kaimio.sane.SaneException;
 import fi.kaimio.sane.SaneOptionDescriptor;
 import fi.kaimio.sane.ScanParameter;

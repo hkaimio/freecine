@@ -5,7 +5,6 @@
 
 package fi.kaimio.sane;
 
-import fi.kaimio.moviescan.*;
 import com.sun.jna.Structure;
 
 /**
