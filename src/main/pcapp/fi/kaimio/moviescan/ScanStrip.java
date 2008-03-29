@@ -341,10 +341,6 @@ public class ScanStrip {
                 AffineDescriptor.create( stripImage, xform, 
                 Interpolation.getInstance( Interpolation.INTERP_BICUBIC ), 
                 null, null );
-        int minx = rotated.getMinX();
-        int miny = rotated.getMinY();
-        int rw = rotated.getWidth();
-        int rh = rotated.getHeight();
         
 
         ImageLayout layout = new ImageLayout();
@@ -522,25 +518,6 @@ public class ScanStrip {
                 new int[(int) (maxCornerRadius - minCornerRadius)][width*accumHeight];
         int[][] endAccum = 
                 new int[(int) (maxCornerRadius - minCornerRadius)][width*accumHeight];
-        
-        /*
-         Debugging image - get rid of this!!!
-         */
-        byte[] imageDataSingleArray = new byte[width * height];
-        // Create a Data Buffer from the values on the single image array.
-        DataBufferByte dbuffer = new DataBufferByte( imageDataSingleArray,
-                width * height );
-        // Create an int data sample model.
-        SampleModel sampleModel =
-                RasterFactory.createBandedSampleModel( DataBuffer.TYPE_BYTE,
-                width,
-                height,
-                1 );
-        // Create a compatible ColorModel.
-        ColorModel colorModel = PlanarImage.createColorModel( sampleModel );
-        // Create a WritableRaster.
-        Raster raster = RasterFactory.createWritableRaster( sampleModel, dbuffer,
-                new Point( 0, 0 ) );
 
         List<Point> startCorners = new ArrayList<Point>();
         List<Point> endCorners = new ArrayList<Point>();

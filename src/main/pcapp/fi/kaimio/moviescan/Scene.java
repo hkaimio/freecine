@@ -35,7 +35,6 @@ public class Scene implements FrameRangeChangeListener {
      @param frameCount Nubmer of frames to add
      */
     public void addFrames( ScanStrip strip, int firstFrame, int frameCount ) {
-        FrameRange lastRange = getLastRange();
         FrameRange newRange = new FrameRange( strip, firstFrame, getFrameCount(), frameCount );
         frames.add( newRange );
         newRange.addFrameRangeChangeListener( this );

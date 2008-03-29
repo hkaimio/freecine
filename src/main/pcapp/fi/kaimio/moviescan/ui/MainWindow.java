@@ -9,7 +9,6 @@ package fi.kaimio.moviescan.ui;
 import fi.kaimio.moviescan.FrameDescriptor;
 import fi.kaimio.moviescan.FrameIterator;
 import fi.kaimio.moviescan.Project;
-import java.awt.image.RenderedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
@@ -19,7 +18,6 @@ import javax.swing.filechooser.FileFilter;
 import org.jdesktop.application.Action;
 import org.jdesktop.application.Application;
 import org.jdesktop.application.ApplicationContext;
-import org.jdesktop.application.Resource;
 import org.jdesktop.application.ResourceMap;
 
 /**
@@ -33,8 +31,6 @@ public class MainWindow extends javax.swing.JFrame {
     FrameIterator projectIter = null;
     
     ScanStripView stripViewer;
-    
-    RenderedImage currentImage = null;
     
     /** Creates new form MainWindow */
     public MainWindow() {
@@ -389,7 +385,6 @@ public class MainWindow extends javax.swing.JFrame {
             boolean hadPrevFrame = getHasPrevFrame();
 
             FrameDescriptor d = projectIter.next();
-            currentImage = d.getFrame();
             frameNumField.setText( Integer.toString( projectIter.getCurrentFrameNum() ) );
             ((FrameView) framePane).setFrame( d );
             stripViewer.setStrip( d.getStrip() );
@@ -410,7 +405,6 @@ public class MainWindow extends javax.swing.JFrame {
             boolean hadNextFrame = getHasNextFrame();
             boolean hadPrevFrame = getHasPrevFrame();
             FrameDescriptor d = projectIter.prev();
-            currentImage = d.getFrame();
             frameNumField.setText( Integer.toString( projectIter.getCurrentFrameNum() ) );
             ((FrameView) framePane).setFrame( d );
             stripViewer.setStrip( d.getStrip() );
@@ -473,7 +467,12 @@ public class MainWindow extends javax.swing.JFrame {
         chooser.setFileSelectionMode( JFileChooser.DIRECTORIES_ONLY );
         if ( chooser.showDialog( this, resource.getString("newProjectDlg.okBtn.text" ) ) == JFileChooser.APPROVE_OPTION ) {
             File projectDir = chooser.getSelectedFile();
-            projectDir.mkdirs();
+            
+            if ( !projectDir.exists() && !projectDir.mkdirs() ) {
+                JOptionPane.showMessageDialog( this, "Could not create project directory", 
+                        "Error creting directory", JOptionPane.ERROR_MESSAGE );
+                return;
+            }
             if ( new File( projectDir, "project.xml" ).exists() ) {
                 JOptionPane.showMessageDialog( this, "Project exists already", 
                         "Existing project", JOptionPane.ERROR_MESSAGE );

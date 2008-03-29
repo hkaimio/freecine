@@ -194,15 +194,11 @@ public class ScanProgressDlg extends javax.swing.JDialog {
     
     ScanTask scanTask = null;
     
-    RenderedImage previewImg = null;
+
     
     @Override
     public void paint( Graphics g ) {
         super.paint( g );
-        // Paint the preview iamge
-        if ( previewImg != null ) {
-            // ((Graphics2D)g).drawRenderedImage(previewImg, AffineTransform.getTranslateInstance( 10.0, 20.0) );
-        }
     }
 
     /**
@@ -249,7 +245,7 @@ public class ScanProgressDlg extends javax.swing.JDialog {
         return scanTask;
     }
 
-    private class StartScanTask extends org.jdesktop.application.Task<Object, Void> {
+    private static class StartScanTask extends org.jdesktop.application.Task<Object, Void> {
         StartScanTask(org.jdesktop.application.Application app) {
             // Runs on the EDT.  Copy GUI state that
             // doInBackground() depends on from parameters
@@ -284,15 +280,15 @@ public class ScanProgressDlg extends javax.swing.JDialog {
         PointerByReference dList = new PointerByReference();
         Pointer devPtr = null;
         SaneDevice dev = null;
-        ret = sane.sane_get_devices( dList, true );
-        int offset = 0;
+        if ( sane.sane_get_devices( dList, true ) == 0 ) {
+            int offset = 0;
 
-        while ( (devPtr = dList.getValue().getPointer( offset )) != null ) {
-            offset += Pointer.SIZE;
-            SaneDeviceDescriptor d = new SaneDeviceDescriptor( devPtr );
-            scanners.add( d );
+            while ( (devPtr = dList.getValue().getPointer( offset )) != null ) {
+                offset += Pointer.SIZE;
+                SaneDeviceDescriptor d = new SaneDeviceDescriptor( devPtr );
+                scanners.add( d );
+            }
         }
-
         return scanners;
     }
 

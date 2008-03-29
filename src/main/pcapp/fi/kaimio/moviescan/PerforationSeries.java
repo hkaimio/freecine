@@ -64,7 +64,6 @@ class PerforationSeries {
         if ( perforations.size() == 0 ) {
             isFit = true;
             perforations.add( p );
-            p.series = this;
             missCount = p.y / PERF_DISTANCE;
             lastY = p.y;
             lastX = p.x;
@@ -76,11 +75,9 @@ class PerforationSeries {
             int numFrames = (int) Math.round( (double) dy / PERF_DISTANCE );
             int devPixels = Math.abs( dy - PERF_DISTANCE * numFrames );
             double devRel = (double) devPixels / (PERF_DISTANCE * numFrames );
-            int res = dy % PERF_DISTANCE;
             if ( numFrames > 0 && ( devRel < Y_TOL ) ) {
                 isFit = true;
                 perforations.add( p );
-                p.series = this;
                 missCount += numFrames-1;
                 lastY = p.y;
                 lastX2 = lastX;
@@ -147,7 +144,6 @@ class PerforationSeries {
                         Perforation newP = new Perforation();
                         newP.x = lastPerf.x + n * dx;
                         newP.y = lastPerf.y + n * dy;
-                        newP.series = this;
                         ret.add(newP);
                         System.out.println( String.format( "Added interpolated image( %s, %s )", newP.x, newP.y ) );
                     }

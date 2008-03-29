@@ -182,16 +182,6 @@ public class SaneDevice {
         return param;
     }
     
-    public void read( Buffer b ) {
-        IntByReference bytesRead = new IntByReference();
-        int toRead = b.capacity();
-        int status = sane.sane_read(deviceHandle, b, b.capacity(), bytesRead);
-        if ( bytesRead.getValue() < b.capacity() ) {
-            System.err.println( "Read only " + bytesRead.getValue() + 
-                    ", " + b.capacity() + " expected" );
-        }
-    }
-    
     public void read( byte[] data ) throws SaneException {
         int pos = 0;
         byte[] arr = new byte[32752];
@@ -255,9 +245,10 @@ public class SaneDevice {
     }
     
     @Override
-    public void finalize() {
+    protected void finalize() throws Throwable {
         if ( isOpen ) {
             close();
         }
+        super.finalize();
     }
 }

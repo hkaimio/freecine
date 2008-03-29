@@ -9,7 +9,6 @@ public class Perforation {
 
     public int x;
     public int y;
-    PerforationSeries series;
     
     public Perforation() {
     }

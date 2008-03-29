@@ -187,8 +187,6 @@ public class FrameView extends javax.swing.JPanel {
             // Apply LUT to correct black and white poitns
             LookupTableJAI jailut = new LookupTableJAI( lut, true );
             scaledImage = LookupDescriptor.create( scaledImage, jailut, null );
-
-            ColorSpace srgb = ColorSpace.getInstance( ColorSpace.CS_sRGB );
             ColorModel cm =
                     new ComponentColorModel( ColorSpace.getInstance( ColorSpace.CS_sRGB ),
                     false, false, ColorModel.OPAQUE, DataBuffer.TYPE_USHORT );

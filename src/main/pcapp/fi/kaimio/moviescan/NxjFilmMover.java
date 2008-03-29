@@ -52,7 +52,7 @@ public class NxjFilmMover implements FilmMover {
             log.warning( "Exception in search" );
         }
 
-        if ( nxtInfos.length == 0 ) {
+        if ( nxtInfos == null || nxtInfos.length == 0 ) {
             log.warning( "No NXT Found" );
             throw new FilmMoverException( "No NXJ found" );
         }

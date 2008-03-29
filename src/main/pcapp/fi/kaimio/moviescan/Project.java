@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.logging.Logger;
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageWriteParam;
@@ -25,8 +26,6 @@ import javax.xml.transform.sax.SAXTransformerFactory;
 import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stream.StreamResult;
 import org.apache.commons.digester.Digester;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
@@ -36,7 +35,7 @@ import org.xml.sax.helpers.AttributesImpl;
  */
 public class Project implements Iterable<FrameDescriptor> {
 
-    private static Log log = LogFactory.getLog( Project.class.getName() );
+    private static Logger log = Logger.getLogger( Project.class.getName() );
     /**
      Home directory for the project
      */
@@ -78,13 +77,16 @@ public class Project implements Iterable<FrameDescriptor> {
             try  {
                 ret =  (Project) d.parse(projectFile );
             } catch ( IOException e ) {
-                log.error( "IO error reading " + projectFile.getPath() + ": " + e.getMessage() );
+                log.severe( "IO error reading " + projectFile.getPath() + ": " + e.getMessage() );
             } catch ( SAXException e ) {
-                log.error( "Parse error reading " + projectFile.getPath() + ": " + e.getMessage() );                
+                log.severe( "Parse error reading " + projectFile.getPath() + ": " + e.getMessage() );                
             }
         } else {
             try {
-                dir.mkdirs();
+                if ( !dir.mkdirs() ) {
+                    log.warning("Cannot crete project directory" );
+                    return null;
+                }
                 ret = new Project( dir );
                 ret.save();
             } catch ( IOException ex ) {
@@ -103,7 +105,10 @@ public class Project implements Iterable<FrameDescriptor> {
         if ( strip.getName() == null ) {
             File scanDir = new File( dir, "scan" );
             if ( !scanDir.exists() ) {
-                scanDir.mkdir();
+                if ( !scanDir.mkdir()  ) {
+                    log.severe( "Cannot create directory" );
+                    return;
+                }
             }
             int num = getLastScanFile() + 1;
             String name = String.format( "scan_%04d", num );
@@ -183,7 +188,10 @@ public class Project implements Iterable<FrameDescriptor> {
         } catch ( Exception e ) {
             throw new IOException( "Error saving project: " + e.getMessage(), e );
         }
-        f.renameTo( new File( dir, "project.xml" ) );
+        if ( !f.renameTo( new File( dir, "project.xml" ) ) ) {
+            // TODO: proper error handling 
+            log.warning( "cound ot rename project file" );
+        }
     }
     
     public void writeXml( TransformerHandler hd ) throws SAXException {
@@ -244,14 +252,14 @@ public class Project implements Iterable<FrameDescriptor> {
                 ios.flush();
 
             } catch ( IOException ex ) {
-                log.error( "Error saving image " + file.getAbsolutePath() + ": " 
+                log.severe( "Error saving image " + file.getAbsolutePath() + ": " 
                         + ex.getMessage() );
             } finally {
                 if ( ios != null ) {
                     try {
                         ios.close();
                     } catch ( IOException e ) {
-                        log.error( "Error closing output stream: " + e.getMessage() );
+                        log.severe( "Error closing output stream: " + e.getMessage() );
                     }
                 }
                 writer.dispose();
@@ -272,9 +280,9 @@ public class Project implements Iterable<FrameDescriptor> {
             strip.writeXml( hd );
             hd.endDocument();
         } catch ( SAXException ex ) {
-            log.error( "Error saving " + file.getAbsolutePath() + ": " + ex.getMessage() );
+            log.severe( "Error saving " + file.getAbsolutePath() + ": " + ex.getMessage() );
         } catch ( TransformerConfigurationException ex ) {
-            log.error( "Error saving " + file.getAbsolutePath() + ": " + ex.getMessage() );
+            log.severe( "Error saving " + file.getAbsolutePath() + ": " + ex.getMessage() );
         }
     }
 
