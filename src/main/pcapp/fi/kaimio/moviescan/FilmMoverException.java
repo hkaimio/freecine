@@ -9,7 +9,7 @@ package fi.kaimio.moviescan;
  *
  * @author harri
  */
-class FilmMoverException extends Exception {
+public class FilmMoverException extends Exception {
 
     public FilmMoverException( String msg ) {
         super( msg );

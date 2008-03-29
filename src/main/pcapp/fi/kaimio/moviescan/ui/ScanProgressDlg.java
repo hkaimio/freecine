@@ -9,6 +9,7 @@ package fi.kaimio.moviescan.ui;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
+import fi.kaimio.moviescan.FilmMover;
 import fi.kaimio.moviescan.Project;
 import fi.kaimio.sane.Sane;
 import fi.kaimio.sane.SaneDevice;
@@ -21,7 +22,9 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.plaf.basic.BasicComboBoxUI.PropertyChangeHandler;
 import org.jdesktop.application.Action;
+import org.jdesktop.application.Application;
 import org.jdesktop.application.Task;
 import org.jdesktop.application.TaskEvent;
 import org.jdesktop.application.TaskListener;
@@ -44,7 +47,7 @@ public class ScanProgressDlg extends javax.swing.JDialog {
         this.prj = prj;
         initComponents();
         fillScanners();
-        
+        findFilmMover();
     }
 
     /**
@@ -55,6 +58,28 @@ public class ScanProgressDlg extends javax.swing.JDialog {
         for ( SaneDeviceDescriptor d : scanners ) {
             scannerCombo.addItem( d );
         }
+    }
+    
+    private void findFilmMover() {
+        FilmMoverFinderTask t = new FilmMoverFinderTask(Application.getInstance() );
+        t.addTaskListener( new TaskListener.Adapter<FilmMover,Void>() {
+
+            @Override
+            public void succeeded( TaskEvent<FilmMover> ev ) {
+                setFilmMover(ev.getValue() );
+            }
+
+        });
+        
+        t.addPropertyChangeListener( new PropertyChangeListener() {
+
+            public void propertyChange( PropertyChangeEvent ev ) {
+                if ( "message".equals( ev.getPropertyName() ) ) {
+                    messageLabel.setText(ev.getNewValue().toString());
+                }
+            }
+        } );
+        t.execute();
     }
     
     /** This method is called from within the constructor to
@@ -188,10 +213,10 @@ public class ScanProgressDlg extends javax.swing.JDialog {
     }
     
     /**
-     Start a background task that does the scanning & image analysis
-     @return
+    Start a background task that does the scanning & image analysis
+    @return
      */
-    @Action ( block=Task.BlockingScope.ACTION )
+    @Action(block = Task.BlockingScope.ACTION, enabledProperty = "readyForScanning")
     public Task startScan() {
         SaneDevice dev = null;
         try {
@@ -200,7 +225,7 @@ public class ScanProgressDlg extends javax.swing.JDialog {
         } catch ( SaneException e ) {
 
         }
-        scanTask = new ScanTask( dev, null, prj );
+        scanTask = new ScanTask( dev, filmMover, null, prj );
         scanTask.addPropertyChangeListener( new PropertyChangeListener() {
 
             public void propertyChange( PropertyChangeEvent evt ) {
@@ -222,6 +247,25 @@ public class ScanProgressDlg extends javax.swing.JDialog {
 
         setScanOngoing( true );
         return scanTask;
+    }
+
+    private class StartScanTask extends org.jdesktop.application.Task<Object, Void> {
+        StartScanTask(org.jdesktop.application.Application app) {
+            // Runs on the EDT.  Copy GUI state that
+            // doInBackground() depends on from parameters
+            // to StartScanTask fields, here.
+            super(app);
+        }
+        @Override protected Object doInBackground() {
+            // Your Task's code here.  This method runs
+            // on a background thread, so don't reference
+            // the Swing GUI from here.
+            return null;  // return your result
+        }
+        @Override protected void succeeded(Object result) {
+            // Runs on the EDT.  Update the GUI based on
+            // the result computed by doInBackground().
+        }
     }
 
     /**
@@ -264,19 +308,49 @@ public class ScanProgressDlg extends javax.swing.JDialog {
 
     public void setScanOngoing(boolean b) {
         boolean old = isScanOngoing();
+        boolean wasReady = isReadyForScanning();
         this.scanOngoing = b;
         firePropertyChange("scanOngoing", old, isScanOngoing());
         firePropertyChange("okToClose", !old, !isScanOngoing());
+        firePropertyChange("readyForScanning", wasReady, isReadyForScanning() );
+    }
+    
+    public boolean isReadyForScanning() {
+        return isFilmMoverReady() && !isScanOngoing();
     }
     
     public boolean isOkToClose() {
         return !isScanOngoing();
     }
 
+    FilmMover filmMover = null;
+    /**
+     property to indicate if film filmMover is ready
+     */
+    public boolean isFilmMoverReady() {
+        return filmMover != null;
+    }
+    
+    public void setFilmMover( FilmMover mover ) {
+        FilmMover old = this.filmMover;
+        boolean oldExists = isFilmMoverReady();
+        boolean wasReady = isReadyForScanning();
+        this.filmMover = mover;
+        firePropertyChange("filmMover", old, getFilmMover() );
+        firePropertyChange("filmMoverReady", oldExists, isFilmMoverReady() );
+        firePropertyChange("readyForScanning", wasReady, isReadyForScanning() );
+    }
+
+    public FilmMover getFilmMover() {
+        return filmMover;
+    }
+    
     @Action( enabledProperty="okToClose" )
     public void closeDlg() {
         setVisible( false );
     }
+    
+    
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton closeBtn;

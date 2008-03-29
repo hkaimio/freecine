@@ -4,6 +4,8 @@
  */
 package fi.kaimio.moviescan.ui;
 
+import fi.kaimio.moviescan.FilmMover;
+import fi.kaimio.moviescan.FilmMoverException;
 import fi.kaimio.moviescan.Project;
 import fi.kaimio.moviescan.ScanAnalysisListener;
 import fi.kaimio.moviescan.ScanStrip;
@@ -39,6 +41,7 @@ public class ScanTask extends Task<Void, Void> implements ScanAnalysisListener {
     private SaneDevice dev;
     private Rectangle scanArea;
     private Project prj;
+    private FilmMover filmMover;
 
     /**
      Creates a new ScanTask object
@@ -46,11 +49,12 @@ public class ScanTask extends Task<Void, Void> implements ScanAnalysisListener {
      @param scanArea Scan area 
      @param prj the project in which scanned frames are added
      */
-    public ScanTask( SaneDevice dev, Rectangle scanArea, Project prj ) {
+    public ScanTask( SaneDevice dev, FilmMover mover, Rectangle scanArea, Project prj ) {
         super( Application.getInstance() );
         this.dev = dev;
         this.scanArea = scanArea;
         this.prj = prj;
+        this.filmMover = mover;
     }
     /**
     Width of the tiles used for storing the scanned iamge
@@ -98,6 +102,14 @@ public class ScanTask extends Task<Void, Void> implements ScanAnalysisListener {
             System.gc();
             System.gc();
             System.gc();
+            message( "movingFilmMsg" );
+            try {
+                filmMover.moveFilm();
+            } catch (FilmMoverException e ) {
+                message( "filmMoveFailedMsg", e.getMessage() );
+                break;
+            }
+            
             stripCount++;   
         }
         return null;
