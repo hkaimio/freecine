@@ -447,11 +447,13 @@ public class MainWindow extends javax.swing.JFrame {
 
     private void whiteSliderStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_whiteSliderStateChanged
         int val = whiteSlider.getValue();
+        prj.getScene().setWhite( val );
         ((FrameView) framePane).setWhite( val );
     }//GEN-LAST:event_whiteSliderStateChanged
 
     private void blackSliderStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_blackSliderStateChanged
         int val = blackSlider.getValue();
+        prj.getScene().setBlack( val );
         ((FrameView) framePane).setBlack( val );
 }//GEN-LAST:event_blackSliderStateChanged
 

@@ -78,6 +78,9 @@ class SaveFramesTask extends Task<Object, Void> {
     protected Object doInBackground() {
         int frame = 0;
         int totalFrames = prj.getScene().getFrameCount();
+        ColorConverter conv = new ColorConverter();
+        conv.setBlack( prj.getScene().getBlack() );
+        conv.setWhite( prj.getScene().getWhite() );
         for ( FrameDescriptor fd : prj ) {
             if ( isCancelled() ) {
                 return null;
@@ -86,7 +89,8 @@ class SaveFramesTask extends Task<Object, Void> {
             message( "savingFrameMsg", fname );
             File f = new File( dir, fname );
             RenderedImage img = fd.getFrame();
-            saveImage(img, f);
+            conv.setSourceImage( img );
+            saveImage( conv.getConvertedImage(), f );
             setProgress( frame, 0, totalFrames );
             frame++;
         }

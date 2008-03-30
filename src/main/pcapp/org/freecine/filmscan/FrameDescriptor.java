@@ -65,6 +65,7 @@ public class FrameDescriptor {
         return strip.getFrame( frameNum );
     }
     
+    
     /**
      Get the perforation matching to this frame
      @return

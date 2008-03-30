@@ -43,8 +43,8 @@ public class TestProject {
         prjdir.delete();
         prjdir.mkdir();
         Project prj = new Project( prjdir );
-        ScanStrip sc1 = prj.getScanStrip( "strip1" );
-        ScanStrip sc2 = prj.getScanStrip( "strip2" );
+        ScanStrip sc1 = new ScanStrip();
+        ScanStrip sc2 = new ScanStrip();
         for ( int n = 0; n < 30; n++ ) {
             sc1.addPerforation( 100, n * 800 );
             sc2.addPerforation( 100, n * 800 );

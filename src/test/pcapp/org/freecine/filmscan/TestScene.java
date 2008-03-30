@@ -26,8 +26,11 @@ Program grant you additional permission to convey the resulting work.
 
 package org.freecine.filmscan;
 import java.awt.image.RenderedImage;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.io.IOException;
+import javax.swing.plaf.basic.BasicComboBoxUI.PropertyChangeHandler;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerConfigurationException;
@@ -56,6 +59,10 @@ public class TestScene {
             sc1.addPerforation( 100, n*800 );
             sc2.addPerforation( 100, n*800 );
         }
+        sc1.setFirstUsable(0);
+        sc2.setFirstUsable(0);
+        sc1.setLastUsable( sc1.getPerforations().size()-1);
+        sc2.setLastUsable( sc2.getPerforations().size()-1);
         
         Scene scene = new Scene();
         scene.addFrames(sc1, 3, 27 );
@@ -89,6 +96,10 @@ public class TestScene {
             sc1.addPerforation( 100, n*800 );
             sc2.addPerforation( 100, n*800 );
         }
+        sc1.setFirstUsable(0);
+        sc2.setFirstUsable(0);
+        sc1.setLastUsable( sc1.getPerforations().size()-1);
+        sc2.setLastUsable( sc2.getPerforations().size()-1);
         
         Scene scene = new Scene();
         scene.addFrames(sc1, 3, 27 );
@@ -112,6 +123,44 @@ public class TestScene {
         assertEquals( 1, scene.getStripFrameNum( 27 ));
     }
     
+    static class TestPropListener implements PropertyChangeListener {
+        String prop = null;
+        Object oldval = null;
+        Object newval = null;
+
+        public void propertyChange( PropertyChangeEvent ev ) {
+            prop = ev.getPropertyName();
+            oldval = ev.getOldValue();
+            newval = ev.getNewValue();
+        }  
+    }
+    
+    @Test
+    public void testChangeSupport() {
+        Scene s = new Scene();
+        
+       TestPropListener l = new TestPropListener();
+
+       s.addPropertyChangeListener( l );
+       
+       s.setBlack( 100 );
+       assertEquals( "black", l.prop );
+       assertEquals( 100, l.newval );
+       assertEquals( 0, l.oldval );
+
+       s.setWhite( 10000 );
+       assertEquals( "white", l.prop );
+       assertEquals( 10000, l.newval );
+       assertEquals( 0xffff, l.oldval );
+                
+       s.removePropertyChangeListener(l);
+       s.setBlack( 0 );
+       assertEquals( "white", l.prop );
+       assertEquals( 10000, l.newval );
+       assertEquals( 0xffff, l.oldval );
+       
+    }
+    
     /**
      Test import & export to XML
      @throws java.io.IOException
@@ -131,6 +180,9 @@ public class TestScene {
         Scene scene = new Scene();
         scene.addFrames( sc1, 3, 27 );
         scene.addFrames( sc2, 0, 25 );
+        scene.setBlack( 127 );
+        scene.setWhite( 23000 );
+        
         File f = File.createTempFile( "scene_test", "xml" );
 
         // Write the strip info to a file
@@ -150,6 +202,9 @@ public class TestScene {
         Scene parsedScene = (Scene) d.parse( f );
 
         assertEquals(scene.getFrameCount(), parsedScene.getFrameCount() );
+        assertEquals( scene.getWhite(), parsedScene.getWhite() );
+        assertEquals( scene.getBlack(), parsedScene.getBlack() );
+        
         
         for ( int n = 0 ; n < scene.getFrameCount() ; n++ ) {
             System.out.println( n );

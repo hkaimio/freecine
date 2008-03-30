@@ -36,17 +36,10 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.color.ColorSpace;
 import java.awt.geom.AffineTransform;
 import java.awt.image.ColorModel;
 import java.awt.image.ColorModel;
-import java.awt.image.ColorModel;
-import java.awt.image.ComponentColorModel;
-import java.awt.image.DataBuffer;
 import java.awt.image.RenderedImage;
-import javax.media.jai.LookupTableJAI;
-import javax.media.jai.operator.ColorConvertDescriptor;
-import javax.media.jai.operator.LookupDescriptor;
 import javax.media.jai.operator.ScaleDescriptor;
 
 /**
@@ -56,10 +49,12 @@ import javax.media.jai.operator.ScaleDescriptor;
  */
 public class FrameView extends javax.swing.JPanel {
     
+    ColorConverter conv;
+    
     /** Creates new form FrameView */
     public FrameView() {
         initComponents();
-        calcLUT();
+        conv = new ColorConverter();
     }
     
     FrameViewMode mode = FrameViewMode.DRAW_FRAME;
@@ -100,6 +95,7 @@ public class FrameView extends javax.swing.JPanel {
      */
     public void setFrame( FrameDescriptor d ) {
         this.currentFrame = d;
+        conv.setSourceImage( d.getFrame() );
         scaledImage = null;
         repaint();
     }
@@ -114,7 +110,7 @@ public class FrameView extends javax.swing.JPanel {
      @return
      */
     public int getWhite() {
-        return white;
+        return conv.getWhite();
     }
 
     /**
@@ -122,8 +118,7 @@ public class FrameView extends javax.swing.JPanel {
      @param white
      */
     public void setWhite( int white ) {
-        this.white = white;
-        calcLUT();
+        conv.setWhite(white);
         scaledImage = null;
         repaint();
     }
@@ -133,7 +128,7 @@ public class FrameView extends javax.swing.JPanel {
      @return
      */
     public int getBlack() {
-        return black;
+        return conv.getBlack();
     }
 
     /**
@@ -141,32 +136,9 @@ public class FrameView extends javax.swing.JPanel {
      @param black
      */
     public void setBlack( int black ) {
-        this.black = black;
-        calcLUT();
+        conv.setBlack(black);
         scaledImage = null;
         repaint();
-    }
-    
-    /**
-     Lookup table for correcting exposure in linear color space
-     */
-    
-    short[] lut = new short[0x10000];
-
-    
-    /**
-     Calculate the LUT for exposure correction
-     */
-    private void calcLUT() {
-
-        for ( int n = 0; n < lut.length; n++ ) {
-            double src = ((double) n) / 65535.0;
-            double dst = ((double) (n - black)) / ((double) (white - black));
-            int dstInt = (int) (65535.0 * dst);
-            dstInt = Math.max( 0, dstInt );
-            dstInt = Math.min( 65535, dstInt );
-            lut[n] = (short) dstInt;
-        }
     }
     
     
@@ -198,20 +170,12 @@ public class FrameView extends javax.swing.JPanel {
         if ( scaledImage == null || 
                 (scaledImage.getWidth() != getWidth() && 
                 scaledImage.getHeight() != getHeight() ) ) {
-            RenderedImage img = currentFrame.getFrame();
+            
+            RenderedImage img = conv.getConvertedImage();
             float scaleH = (float)getWidth()/(float)img.getWidth();
             float scaleV = (float)getHeight()/(float)img.getHeight();
             float scale = Math.min( scaleV, scaleH );
             scaledImage = ScaleDescriptor.create( img, scale, scale, 0.0f, 0.0f, null, null );
-            
-            // Apply LUT to correct black and white poitns
-            LookupTableJAI jailut = new LookupTableJAI( lut, true );
-            scaledImage = LookupDescriptor.create( scaledImage, jailut, null );
-            ColorModel cm =
-                    new ComponentColorModel( ColorSpace.getInstance( ColorSpace.CS_sRGB ),
-                    false, false, ColorModel.OPAQUE, DataBuffer.TYPE_USHORT );
-
-            scaledImage = ColorConvertDescriptor.create( scaledImage, cm, null );
         }
         ((Graphics2D)g).drawRenderedImage(scaledImage, AffineTransform.getScaleInstance(1.0, 1.0));        
     }

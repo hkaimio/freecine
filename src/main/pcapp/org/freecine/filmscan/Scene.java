@@ -26,6 +26,8 @@ Program grant you additional permission to convey the resulting work.
 package org.freecine.filmscan;
 
 import java.awt.image.RenderedImage;
+import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
 import java.util.ArrayList;
 import java.util.List;
 import javax.xml.transform.sax.TransformerHandler;
@@ -42,11 +44,33 @@ public class Scene implements FrameRangeChangeListener {
      Frames in this scene
      */
     List<FrameRange> frames = new ArrayList<FrameRange>();
+
+    /**
+     White point for this scene
+     */
+    private int white = 0xffff;
+    
+    /**
+     Black point for this scene
+     */
+    private int black = 0;
+    
+    private PropertyChangeSupport changeSupport;
     
     /**
      Create a new scene
      */
-    public Scene() {}
+    public Scene() {
+        changeSupport = new PropertyChangeSupport( this );
+    }
+    
+    public void addPropertyChangeListener( PropertyChangeListener l ) {
+        changeSupport.addPropertyChangeListener( l );
+    }
+    
+    public void removePropertyChangeListener( PropertyChangeListener l ) {
+        changeSupport.removePropertyChangeListener( l );
+    }
     
     /**
      Add frames from a scann to end of this scene
@@ -55,9 +79,11 @@ public class Scene implements FrameRangeChangeListener {
      @param frameCount Nubmer of frames to add
      */
     public void addFrames( ScanStrip strip, int firstFrame, int frameCount ) {
+        int oldFrameCount = getFrameCount();
         FrameRange newRange = new FrameRange( strip, firstFrame, getFrameCount(), frameCount );
         frames.add( newRange );
         newRange.addFrameRangeChangeListener( this );
+        changeSupport.firePropertyChange( "frameCount", oldFrameCount, getFrameCount() );
     }
     
     /**
@@ -79,6 +105,28 @@ public class Scene implements FrameRangeChangeListener {
     public void setCropBounds( double centerX, double centerY, double rot, double width ) {
         
     }
+    
+    public int getWhite() {
+        return white;
+    }
+    
+    public void setWhite( int white ) {
+        int oldWhite = this.white;
+        this.white = white;
+        changeSupport.firePropertyChange( "white", oldWhite, white );
+    }
+         
+    public int getBlack() {
+        return black;
+    }
+    
+    public void setBlack( int black ) {
+        int oldBlack = this.black;
+        this.black = black;
+        changeSupport.firePropertyChange( "black", oldBlack, black );
+    }
+         
+    
     
     /**
      Get a frame in this scene
@@ -189,7 +237,12 @@ public class Scene implements FrameRangeChangeListener {
     
     public void writeXml( TransformerHandler hd ) throws SAXException {
         AttributesImpl atts = new AttributesImpl();
+        atts.addAttribute("", "", "black", "CDATA", 
+                Integer.toString( getBlack() ) );
+        atts.addAttribute("", "", "white", "CDATA", 
+                Integer.toString( getWhite() ) );
         hd.startElement("", "", "scene", atts);
+        atts.clear();
         hd.startElement("", "", "frames", atts);
         for ( FrameRange r : frames ) {
             atts.clear();

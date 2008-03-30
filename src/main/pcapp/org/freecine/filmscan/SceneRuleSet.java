@@ -93,6 +93,7 @@ public class SceneRuleSet extends RuleSetBase {
     @Override
     public void addRuleInstances( Digester d ) {
         d.addObjectCreate(prefix + "scene", Scene.class );
+        d.addSetProperties(prefix + "scene" );
         d.addRule( prefix+"scene/frames/framerange", new FrameRangeRule(project));
     }
 

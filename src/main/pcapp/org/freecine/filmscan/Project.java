@@ -27,7 +27,6 @@ package org.freecine.filmscan;
 
 import java.awt.image.RenderedImage;
 import java.io.File;
-import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.HashMap;
@@ -134,11 +133,16 @@ public class Project implements Iterable<FrameDescriptor> {
             String name = String.format( "scan_%04d", num );
             // Save the image
             RenderedImage img = strip.stripImage;
-            File imgFile = new File( scanDir, name + ".tif" );
-            saveImage( img, imgFile );
+            if ( img != null ) {
+                File imgFile = new File( scanDir, name + ".tif" );
+                saveImage( img, imgFile );
+                strip.setFile( imgFile );
+            } else {
+                log.warning( "No image file for strip " + name );
+            }
+            
             saveStripInfo( strip, new File( scanDir, name + ".xml" ) );
             strip.setName( name );
-            strip.setFile( imgFile );
         }
         loadedStrips.put( strip.getName(), strip );
         scene.addFrames( strip, 0, strip.getFrameCount() );

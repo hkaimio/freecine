@@ -25,12 +25,15 @@ Program grant you additional permission to convey the resulting work.
 
 package org.freecine.filmscan;
 
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
 import java.util.Iterator;
 
 /**
 FrameIterator is used to access frames of a project/scene sequentically
  */
-public class FrameIterator implements Iterator<FrameDescriptor> {
+public class FrameIterator implements Iterator<FrameDescriptor>, PropertyChangeListener {
 
     /**
      Project this iterator is associated with
@@ -55,6 +58,8 @@ public class FrameIterator implements Iterator<FrameDescriptor> {
      negative, the frame currentFrame+1 is returned.
      */
     private int nextFrameNum = -1;
+    
+    PropertyChangeSupport changeSupport;
 
     /**
      Create a new iterator. This should not be called directly, use 
@@ -63,8 +68,10 @@ public class FrameIterator implements Iterator<FrameDescriptor> {
      */
      
     FrameIterator( Project project ) {
+        changeSupport = new PropertyChangeSupport( this );
         this.project = project;
         currentScene = project.getScene();
+        currentScene.addPropertyChangeListener( this );
         currentStrip = null;
     }
 
@@ -142,6 +149,34 @@ public class FrameIterator implements Iterator<FrameDescriptor> {
      */
     public void setNextFrameNum( int n ) {
         nextFrameNum = n;
+    }
+    
+    public Scene getScene() {
+        return currentScene;
+    }
+    
+    public int getBlack() {
+        return currentScene.getBlack();
+    }
+    
+    public int getWhite() {
+        return currentScene.getWhite();
+    }
+
+    public void addPropertyChangeListener( PropertyChangeListener l ) {
+        changeSupport.addPropertyChangeListener( l );
+    }
+    
+    public void removePropertyChangeListener( PropertyChangeListener l ) {
+        changeSupport.removePropertyChangeListener( l );
+    }
+    
+    public void propertyChange( PropertyChangeEvent ev ) {
+        if ( "white".equals(ev.getPropertyName() ) || 
+                "black".equals( ev.getPropertyName() ) ) {
+            changeSupport.firePropertyChange( ev.getPropertyName(), 
+                    ev.getOldValue(), ev.getNewValue() );
+        }
     }
 
 }
