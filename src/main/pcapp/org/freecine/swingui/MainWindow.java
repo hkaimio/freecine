@@ -162,6 +162,7 @@ public class MainWindow extends javax.swing.JFrame {
         jToolBar1.setRollover(true);
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setTitle("Freecine");
 
         framePane.setBorder(new javax.swing.border.MatteBorder(null));
 
