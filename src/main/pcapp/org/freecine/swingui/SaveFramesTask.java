@@ -25,9 +25,11 @@ Program grant you additional permission to convey the resulting work.
 
 package org.freecine.swingui;
 
+import java.awt.image.DataBuffer;
 import org.freecine.filmscan.FrameDescriptor;
 import org.freecine.filmscan.Project;
 import java.awt.image.RenderedImage;
+import java.awt.image.renderable.ParameterBlock;
 import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
@@ -36,6 +38,10 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
+import javax.media.jai.JAI;
+import javax.media.jai.PlanarImage;
+import javax.media.jai.operator.FormatDescriptor;
+import javax.media.jai.operator.RescaleDescriptor;
 import org.jdesktop.application.Application;
 import org.jdesktop.application.Task;
 
@@ -119,7 +125,16 @@ class SaveFramesTask extends Task<Object, Void> {
         if ( extIndex > 0 ) {
             ftype = imageFname.substring( extIndex );
         }
-
+        // Reduce to 8 bit samples if we have more...
+        if ( img.getSampleModel().getSampleSize( 0 ) == 16 ) {
+            double[] subtract = {0.0};
+            double[] divide   = {1.0/256.0};
+            // Now we can rescale the pixels gray levels:
+            img = RescaleDescriptor.create(img, divide, subtract, null );
+            // Make sure it is a byte image - force conversion.
+            img = FormatDescriptor.create(img, DataBuffer.TYPE_BYTE, null );
+            ParameterBlock pbConvert = new ParameterBlock();
+        }
         ImageWriter writer = null;
         Iterator iter = ImageIO.getImageWritersBySuffix( ftype );
         writer = (ImageWriter) iter.next();
