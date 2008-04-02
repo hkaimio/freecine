@@ -3,3 +3,4 @@ syntax: regexp
 ^dist/
 ^testimages/
 ^tmp/
+^docs/

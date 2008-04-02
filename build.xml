@@ -24,11 +24,12 @@ Program grant you additional permission to convey the resulting work.
 -->
 
 
-<project name="moviescan" default="dist" basedir=".">
+<project name="freecine" default="dist" basedir=".">
 <description>
     Movie film scanning with flatbed scanner
 </description>
 <!-- set global properties for this build -->
+<property name="project.name" value="freecine"/>
 <property name="src-common" location="src/main/common"/>
 <property name="src-pcapp" location="src/main/pcapp"/>
 <property name="src-nxj" location="src/main/nxj"/>
@@ -92,7 +93,7 @@ Program grant you additional permission to convey the resulting work.
     <mkdir dir="${build-nxj}"/>
     <mkdir dir="${build-test}"/>
 
-    <property file="conf/buildinfo.properties"/>   
+    <property file="conf/versioninfo.properties"/>   
 </target>
 
 <target name="compile" depends="init"
@@ -182,12 +183,12 @@ Program grant you additional permission to convey the resulting work.
   </target>
 
 <target name="dist" depends="compile"
-        description="Build Moviescan JAR files" >
+        description="Build Freecine JAR files" >
     
     <!-- Create the distribution directory -->
-    <mkdir dir="${dist}/moviescan-latest"/>
+    <mkdir dir="${dist}/${project.name}-latest"/>
     <delete>
-        <fileset dir="${dist}/moviescan-latest" includes="**/*"/>
+        <fileset dir="${dist}/${project.name}-latest" includes="**/*"/>
         
     </delete>
     
@@ -200,7 +201,7 @@ Program grant you additional permission to convey the resulting work.
     </pathconvert>    
     
     <!-- Create the jar file  -->
-    <jar jarfile="${dist}/moviescan-latest/moviescan.jar">
+    <jar jarfile="${dist}/${project.name}-latest/${project.name}.jar">
         <manifest>
             <attribute name="Main-Class" value="${pcapp-main-class}"/>
             <attribute name="Built-By" value="${user.name}"/>
@@ -218,11 +219,11 @@ Program grant you additional permission to convey the resulting work.
         
         <!-- Include resources into the JAR -->
         <fileset dir="conf" includes="*"/>
-        <fileset dir="src/main/resources" includes="*"/>
+        <fileset dir="src/main/resources" includes="*" excludes="README"/>
     </jar>
     
     <!-- Copy needed JAR files to distribution directory -->
-    <copy todir="${dist}/moviescan-latest">
+    <copy todir="${dist}/${project.name}-latest">
         <fileset refid="runtime.fileset"/>   
     </copy>
     
@@ -406,14 +407,15 @@ Program grant you additional permission to convey the resulting work.
 <target name="doc" description="Create Javadoc documentation">
     <javadoc packagenames = "*"
              destdir="docs/api"
-             sourcepath="${src}"
              author="true"
              version="true"
              use="true"
-             windowtitle="Moviescan API documentation">
-        
+             windowtitle="Freecine API documentation">
+        <fileset dir="${src-pcapp}" includes="**/*.java"/>
+        <fileset dir="${src-nxj}"/>
+        <fileset dir="${src-common}"/>
         <classpath refid="project.class.path"/>
-        <doctitle><![CDATA[<h1>Moviescan</h1>]]></doctitle>
+        <doctitle><![CDATA[<h1>Freecine</h1>]]></doctitle>
         <bottom><![CDATA[<i>Copyright &#169; 2007 Harri Kaimio</i>]]></bottom>
         <tag name="todo" scope="all" description="To do:" />
         <link href="http://java.sun.com/j2se/1.5.0/docs/api/"/>
@@ -431,9 +433,9 @@ Program grant you additional permission to convey the resulting work.
 <target name="dist-bin-tgz" depends="dist"
         description="Creates the binary distribution">
 <property name="version" value="${build.major}.${build.minor}.${build.patch}${build.version_shorttag}"/>
-<property name="tardir" value="moviescan-${build.major}.${build.minor}.${build.patch}${build.version_shorttag}"/>
-<tar destfile="${dist}/moviescan-${version}.tar.gz" compression="gzip">
-    <tarfileset dir="${dist}/moviescan-latest" prefix="${tardir}/lib">
+<property name="tardir" value="${project.name}-${build.major}.${build.minor}.${build.patch}${build.version_shorttag}"/>
+<tar destfile="${dist}/${project.name}-${version}.tar.gz" compression="gzip">
+    <tarfileset dir="${dist}/${project.name}-latest" prefix="${tardir}/lib">
         <!-- Exclude JAI libraries since their license is not GPL compatible -->
         <exclude name="**/jai_core.jar"/>
         <exclude name="**/jai_codec.jar"/>
@@ -444,11 +446,12 @@ Program grant you additional permission to convey the resulting work.
     </tarfileset>
 </tar>
 </target>
+
 <target name="dist-src-tgz" depends="dist"
         description="Creates the source distribution tar file">
     <property name="version" value="${build.major}.${build.minor}.${build.patch}${build.version_shorttag}"/>
-    <property name="tardir" value="moviescan-${build.major}.${build.minor}.${build.patch}"/>
-    <tar destfile="${dist}/moviescan-src-${version}.tar.gz" compression="gzip">
+    <property name="tardir" value="${project.name}-${build.major}.${build.minor}.${build.patch}"/>
+    <tar destfile="${dist}/${project.name}-src-${version}.tar.gz" compression="gzip">
         <tarfileset dir="src" prefix="${tardir}/src">
             <exclude name="**/.svn"/>
         </tarfileset>
@@ -469,26 +472,9 @@ Program grant you additional permission to convey the resulting work.
         </tarfileset>
     </tar>
 </target>
-<target name="dist-testfiles-tgz" depends="dist"
-        description="Crates the test file distribution tar file">
-    <property name="version" value="${build.major}.${build.minor}.${build.patch}${build.version_shorttag}"/>
-    <property name="tardir" value="moviescan-${build.major}.${build.minor}.${build.patch}"/>
-    <tar destfile="${dist}/moviescan-testfiles-${version}.tar.gz" compression="gzip">
-        <tarfileset dir="tests" prefix="${tardir}/tests">
-            <exclude name="**/.svn"/>
-        </tarfileset>
-        <tarfileset dir="testfiles" prefix="${tardir}/testfiles">
-            <exclude name="**/.svn"/>
-        </tarfileset>
-        <tarfileset dir="." prefix="${tardir}">
-            <include name="relnotes.txt"/>
-            <include name="LICENSE.txt"/>
-        </tarfileset>
-    </tar>
-</target>
 
 
-<target name="dist-files" depends="dist-bin-tgz,dist-src-tgz,dist-testfiles-tgz"
+<target name="dist-files" depends="dist-bin-tgz,dist-src-tgz"
         description="Creates the distribution packages"/>
 
 </project>
