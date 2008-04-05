@@ -33,10 +33,18 @@ import java.awt.image.RenderedImage;
  */
 public class FrameDescriptor {
 
+    private Scene scene;
     private ScanStrip strip;
     private int frameNum;
 
-    FrameDescriptor( ScanStrip strip, int stripFrameNum ) {
+    /**
+     SCreate a new FrameDescriptor
+     @param scene Scene from which the frame is
+     @param strip ScanStrip where the actual frame image is found
+     @param stripFrameNum Number of the frame in strip
+     */
+    FrameDescriptor( Scene scene, ScanStrip strip, int stripFrameNum ) {
+        this.scene = scene;
         this.strip = strip;
         this.frameNum = stripFrameNum;
     }
@@ -72,6 +80,24 @@ public class FrameDescriptor {
      */
     public Perforation getPerforation() {
         return strip.getPerforation( frameNum );
+    }
+    
+    /**
+     Get white point of this frame. In practice this is the white point of 
+     associated {@link Scene}.
+     @return WHite point of frame.
+     */
+    public int getWhite() {
+        return scene.getWhite();
+    }
+    
+    /**
+     Get black point of this frame. In practice this is the black point of 
+     associated {@link Scene}.
+     @return WHite point of frame.
+     */
+    public int getBlack() {
+        return scene.getBlack();
     }
             
 }

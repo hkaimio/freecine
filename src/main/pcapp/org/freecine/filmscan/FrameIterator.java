@@ -29,12 +29,15 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.util.Iterator;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
 FrameIterator is used to access frames of a project/scene sequentically
  */
 public class FrameIterator implements Iterator<FrameDescriptor>, PropertyChangeListener {
 
+    static private Logger log = Logger.getLogger(FrameIterator.class.getName() );
     /**
      Project this iterator is associated with
      */
@@ -91,6 +94,8 @@ public class FrameIterator implements Iterator<FrameDescriptor>, PropertyChangeL
         return sceneFrame > 0;
     }
 
+    FrameDescriptor lastFrame = null;
+    
     /**
      Move iterator to the next frame
      @return Next frame
@@ -110,8 +115,15 @@ public class FrameIterator implements Iterator<FrameDescriptor>, PropertyChangeL
             nextStrip.reserveStripImage();
             currentStrip = nextStrip;
         }
-        FrameDescriptor d = new FrameDescriptor( currentStrip, currentScene.getStripFrameNum( sceneFrame ) );
-        System.err.printf( "Frame %d, strip %s[%d]\n", sceneFrame, d.getStrip().getName(), d.getStripFrameNum() );
+        FrameDescriptor d = 
+                new FrameDescriptor( currentScene, currentStrip, 
+                currentScene.getStripFrameNum( sceneFrame ) );
+
+        // Check for changed properties
+        
+        log.log( Level.FINE, 
+                String.format( "Frame %d, strip %s[%d]\n", 
+                sceneFrame, d.getStrip().getName(), d.getStripFrameNum() ) );
         return d;
     }
 
@@ -131,7 +143,9 @@ public class FrameIterator implements Iterator<FrameDescriptor>, PropertyChangeL
             nextStrip.reserveStripImage();
             currentStrip = nextStrip;
         }
-        FrameDescriptor d = new FrameDescriptor( currentStrip, currentScene.getStripFrameNum( sceneFrame ) );
+        FrameDescriptor d = 
+                new FrameDescriptor( currentScene, currentStrip, 
+                currentScene.getStripFrameNum( sceneFrame ) );
         return d;
     }
 

@@ -96,6 +96,8 @@ public class FrameView extends javax.swing.JPanel {
     public void setFrame( FrameDescriptor d ) {
         this.currentFrame = d;
         conv.setSourceImage( d.getFrame() );
+        setWhite( d.getWhite() );
+        setBlack( d.getBlack() );
         scaledImage = null;
         repaint();
     }

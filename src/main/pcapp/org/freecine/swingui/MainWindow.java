@@ -25,6 +25,9 @@ Program grant you additional permission to convey the resulting work.
 
 package org.freecine.swingui;
 
+import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.freecine.filmscan.FrameDescriptor;
 import org.freecine.filmscan.FrameIterator;
 import org.freecine.filmscan.Project;
@@ -82,6 +85,8 @@ public class MainWindow extends javax.swing.JFrame {
         firePropertyChange("projectOpen", oldPrj != null, prj != null );
         firePropertyChange("hasNextFrame", hadNextFrame, getHasNextFrame() );
         firePropertyChange("hasPrevFrame", hadPrevFrame, getHasPrevFrame() );
+        blackSlider.setValue( projectIter.getBlack() );
+        whiteSlider.setValue( projectIter.getWhite() );
     }
     
     /**
@@ -151,7 +156,8 @@ public class MainWindow extends javax.swing.JFrame {
         fileMenu = new javax.swing.JMenu();
         newProjectItem = new javax.swing.JMenuItem();
         openProjectItem = new javax.swing.JMenuItem();
-        jMenuItem1 = new javax.swing.JMenuItem();
+        saveItem = new javax.swing.JMenuItem();
+        saveFramesItem = new javax.swing.JMenuItem();
         jSeparator2 = new javax.swing.JSeparator();
         exitItem = new javax.swing.JMenuItem();
         editMenu = new javax.swing.JMenu();
@@ -323,8 +329,11 @@ public class MainWindow extends javax.swing.JFrame {
         openProjectItem.setAction(actionMap.get("openProject")); // NOI18N
         fileMenu.add(openProjectItem);
 
-        jMenuItem1.setAction(actionMap.get("showSaveFrameDlg")); // NOI18N
-        fileMenu.add(jMenuItem1);
+        saveItem.setAction(actionMap.get("saveProject")); // NOI18N
+        fileMenu.add(saveItem);
+
+        saveFramesItem.setAction(actionMap.get("showSaveFrameDlg")); // NOI18N
+        fileMenu.add(saveFramesItem);
         fileMenu.add(jSeparator2);
 
         exitItem.setAction(actionMap.get("quit")); // NOI18N
@@ -554,7 +563,25 @@ public class MainWindow extends javax.swing.JFrame {
             setProject( Project.getProject(projectDir) );
         }
     }
-
+    
+    /**
+     Action to save the open project
+     */
+    @Action ( enabledProperty="projectOpen" )
+    public void saveProject() {
+        try {
+            prj.save();
+        } catch ( IOException ex ) {
+            ApplicationContext ctxt = Application.getInstance().getContext();
+            ResourceMap resource = ctxt.getResourceMap( this.getClass() );
+            JOptionPane.showMessageDialog(this, 
+                    resource.getString( "saveProject.Error.text" ), 
+                    resource.getString( "saveProject.Error.title" ), 
+                    JOptionPane.ERROR_MESSAGE );
+        }
+        
+    }
+    
     /**
      Show the {@link SaveFramesDlg}
      */
@@ -584,7 +611,6 @@ public class MainWindow extends javax.swing.JFrame {
     private javax.swing.JMenu jMenu2;
     private javax.swing.JMenuBar jMenuBar1;
     private javax.swing.JMenuBar jMenuBar2;
-    private javax.swing.JMenuItem jMenuItem1;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JSeparator jSeparator1;
@@ -597,6 +623,8 @@ public class MainWindow extends javax.swing.JFrame {
     private javax.swing.JMenuItem openProjectItem;
     private javax.swing.JToggleButton perfViewModeBtn;
     private javax.swing.JMenuItem prevFrameItem;
+    private javax.swing.JMenuItem saveFramesItem;
+    private javax.swing.JMenuItem saveItem;
     private javax.swing.JPanel stripView;
     private javax.swing.JMenu viewMenu;
     private javax.swing.JSlider whiteSlider;

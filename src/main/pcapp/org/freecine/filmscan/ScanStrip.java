@@ -397,7 +397,6 @@ public class ScanStrip {
      @param y Y coordinate of the perforation
      */
     public void addPerforation( int x, int y ) {
-        System.out.printf( "addPerforation %d, %d\n", x, y);
         if (perforations == null ) {
             perforations = new ArrayList<Perforation>();
         }

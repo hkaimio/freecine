@@ -32,10 +32,17 @@
                 </Property>
               </Properties>
             </MenuItem>
-            <MenuItem class="javax.swing.JMenuItem" name="jMenuItem1">
+            <MenuItem class="javax.swing.JMenuItem" name="saveItem">
               <Properties>
                 <Property name="action" type="javax.swing.Action" editor="org.netbeans.modules.swingapp.ActionEditor">
-                  <action class="fi.kaimio.moviescan.ui.MainWindow" id="showSaveFrameDlg" methodName="showSaveFrameDlg"/>
+                  <action class="org.freecine.swingui.MainWindow" id="saveProject" methodName="saveProject"/>
+                </Property>
+              </Properties>
+            </MenuItem>
+            <MenuItem class="javax.swing.JMenuItem" name="saveFramesItem">
+              <Properties>
+                <Property name="action" type="javax.swing.Action" editor="org.netbeans.modules.swingapp.ActionEditor">
+                  <action class="org.freecine.swingui.MainWindow" id="showSaveFrameDlg" methodName="showSaveFrameDlg"/>
                 </Property>
               </Properties>
             </MenuItem>
