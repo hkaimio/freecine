@@ -25,7 +25,6 @@ Program grant you additional permission to convey the resulting work.
 
 package org.freecine.sane;
 
-import com.sun.jna.Memory;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
@@ -236,20 +235,38 @@ public class SaneDevice {
      @throws fi.kaimio.sane.SaneException If an error occurs during reading
      */
     public void read( short[] data, int samplesToRead ) throws SaneException {
-        int pos = 0;
+        read( data, 0, samplesToRead );
+    }
+    
+    /**
+     Read data from scanner as 16 bit samples. 
+     
+     @param data Array in which the samples are stored
+     @param pos Position in data array where the first sample is written
+     @param sampelsToRead Number of samples to read
+     @throws fi.kaimio.sane.SaneException If an error occurs during reading
+     */
+    public void read( short[] data, int pos, int samplesToRead ) throws SaneException {
+        System.err.printf( "SaneDevice.read pos=%d, samplesToRead = %d\n", pos, samplesToRead );
         short[] arr = new short[16636];
         Buffer b = ShortBuffer.wrap( arr, 0, arr.length );
-        while ( pos < samplesToRead ) {
-            int readSize = Math.min( 32752, 2 * (data.length - pos) );
-            
+        if ( pos+samplesToRead > data.length ) {
+            samplesToRead = data.length - pos;
+        }
+        while ( samplesToRead > 0 ) {
+            int readSize = Math.min( 32752, 2 * samplesToRead );
+
             IntByReference bytesRead = new IntByReference();
+            System.err.printf( "reading pos=%d, samplesToRead = %d\n", pos, readSize/2 );
             int status = sane.sane_read(deviceHandle, b, readSize, bytesRead);
             if ( status != 0 ) {
                 throw new SaneException( "Error reading scan data" );
             }
+            System.err.printf( "read %d samples\n", bytesRead.getValue()/2 );
             for ( int n = 0; n < bytesRead.getValue()/2; n++ ) {
                 data[pos+n] = arr[n];
             }
+            samplesToRead -= bytesRead.getValue()/2;
             pos += bytesRead.getValue()/2;            
         }
     }

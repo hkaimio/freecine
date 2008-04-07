@@ -481,7 +481,7 @@ public class MainWindow extends javax.swing.JFrame {
      */
     @Action( enabledProperty="projectOpen" )
     public void showScanDlg() {
-        ScanProgressDlg dlg = new ScanProgressDlg(this, prj, true );
+        ScanProgressDlg dlg = new ScanProgressDlg(this, prj, false );
         dlg.setVisible(true );
     }
 
