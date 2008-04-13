@@ -55,6 +55,8 @@ public class PreviewPane extends javax.swing.JPanel {
     BufferedImage previewImage;
     BufferedImage scaledImage;
     
+    int magnWidth = 100;
+    
     public void setPreviewImage( BufferedImage img ) {
         BufferedImage oldPreview = previewImage;
         previewImage = img;
@@ -120,12 +122,24 @@ public class PreviewPane extends javax.swing.JPanel {
                 scaleImage();
             }
             ((Graphics2D) g).drawRenderedImage( scaledImage, null );
+            
+            // Draw the magnification window
+            int imageX = (int)((double)lastMouseX / scale) - magnWidth / 2;
+            int imageY = (int)((double)lastMouseY / scale) - magnWidth / 2;
+            
+            imageX = Math.max( 0, imageX );
+            imageX = Math.min( previewImage.getWidth()-magnWidth, imageX );
+            imageY = Math.max( 0, imageY );
+            imageY = Math.min( previewImage.getHeight() - magnWidth, imageY );
+            BufferedImage magnImage = previewImage.getSubimage( imageX, imageY, magnWidth, magnWidth );
+            ((Graphics2D) g).drawImage( magnImage, null, 0, getHeight() - magnWidth );
+            
         }
         
-        if ( selection != null ) {
+        if ( selection != null && scaledImage != null ) {
             // Calculate device space coordinates for the selection rectangle
-            double w = getWidth();
-            double h = getHeight();
+            double w = scaledImage.getWidth();
+            double h = scaledImage.getHeight();
             double tlx = w * (( selection.getMinX()-previewArea.getMinX() ) / previewArea.getWidth());
             double tly = h * (( selection.getMinY()-previewArea.getMinY() ) / previewArea.getHeight());
             double selW = w * selection.getWidth() / previewArea.getWidth();
@@ -146,8 +160,11 @@ public class PreviewPane extends javax.swing.JPanel {
         log.exiting( "PreviewPane", "paint" );
     }
     
+    double scale = 1.0;
+    
     /**
-     Calculate scaledIamge from previewImage so that it fits in the control
+     Calculate scaledIamge from previewImage so that it fits in the control. The
+     scale of scaledImage is stored in scale member.
      */
     private void scaleImage() {
         int iw = previewImage.getWidth();
@@ -157,7 +174,7 @@ public class PreviewPane extends javax.swing.JPanel {
         
         double xscale = (double)compWidth / (double) iw;
         double yscale = (double)compHeight / (double) ih;
-        double scale = Math.min( xscale, yscale );
+        scale = Math.min( xscale, yscale );
         AffineTransform xform = AffineTransform.getScaleInstance( scale, scale );
         AffineTransformOp xformOp = new AffineTransformOp( xform, null );
 
@@ -185,6 +202,9 @@ public class PreviewPane extends javax.swing.JPanel {
         addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
             public void mouseDragged(java.awt.event.MouseEvent evt) {
                 formMouseDragged(evt);
+            }
+            public void mouseMoved(java.awt.event.MouseEvent evt) {
+                formMouseMoved(evt);
             }
         });
 
@@ -216,6 +236,13 @@ public class PreviewPane extends javax.swing.JPanel {
 
     private void formMouseDragged(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_formMouseDragged
         log.entering("PreviewPane", "formMouseDragged");
+
+        lastMouseX = evt.getX();
+        lastMouseY = evt.getY();
+        
+        if ( scaledImage == null ) {
+            return;
+        }
         Point2D p1 = screenToDev( dragStartX, dragStartY );
         Point2D p2 = screenToDev( evt.getX(), evt.getY() );
         Rectangle2D s = new Rectangle2D.Double(p1.getX(), p1.getY(), 0.0, 0.0);
@@ -226,23 +253,38 @@ public class PreviewPane extends javax.swing.JPanel {
 
     private void formMouseReleased(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_formMouseReleased
         log.entering( "PreviewPane", "formMouseReleased" );
+        if ( scaledImage == null ) {
+            return;
+        }
         Point2D p1 = screenToDev( dragStartX, dragStartY );
         Point2D p2 = screenToDev( evt.getX(), evt.getY() );
         Rectangle2D s = new Rectangle2D.Double(p1.getX(), p1.getY(), 0.0, 0.0);
         s.add( p2 );
         setSelection( s );
+        log.severe( "new area " + s );
         log.exiting("PreviewPane", "formMouseDragged");
     }//GEN-LAST:event_formMouseReleased
+
+    int lastMouseX = 0;
+    int lastMouseY = 0;
+    
+    private void formMouseMoved(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_formMouseMoved
+        lastMouseX = evt.getX();
+        lastMouseY = evt.getY();
+        repaint();
+    }//GEN-LAST:event_formMouseMoved
     
     /**
-     Convert position from screen coordinates to scanner device coordinates
+     Convert position from screen coordinates to scanner device coordinates.
+     To call this function, the scaledImage must exist as it defines the mapping 
+     screen space coordinate system
      @param x
      @param y
      @return
      */
-    Point2D screenToDev( int x, int y ) {
-        double w = getWidth();
-        double h = getHeight();
+    private Point2D screenToDev( int x, int y ) {
+        double w = scaledImage.getWidth();
+        double h = scaledImage.getHeight();
         double devx = previewArea.getMinX() + previewArea.getWidth() * (x/w);
         double devy = previewArea.getMinY() + previewArea.getHeight() * (y/h);
         return new Point2D.Double( devx, devy );

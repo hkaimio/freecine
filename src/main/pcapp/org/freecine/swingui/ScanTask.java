@@ -35,15 +35,23 @@ import org.freecine.sane.SaneDevice;
 import org.freecine.sane.SaneException;
 import org.freecine.sane.ScanParameter;
 import java.awt.Point;
-import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferUShort;
 import java.awt.image.Raster;
 import java.awt.image.RenderedImage;
 import java.awt.image.SampleModel;
+import java.io.File;
 import java.io.IOException;
+import java.util.Iterator;
+import java.util.logging.Logger;
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.JAI;
 import javax.media.jai.PlanarImage;
@@ -59,8 +67,9 @@ import org.jdesktop.application.Task;
  */
 public class ScanTask extends Task<Void, Void> implements ScanAnalysisListener {
 
+    private static Logger log = Logger.getLogger(ScanTask.class.getName() );
     private SaneDevice dev;
-    private Rectangle scanArea;
+    private Rectangle2D scanArea;
     private Project prj;
     private FilmMover filmMover;
 
@@ -70,7 +79,7 @@ public class ScanTask extends Task<Void, Void> implements ScanAnalysisListener {
      @param scanArea Scan area 
      @param prj the project in which scanned frames are added
      */
-    public ScanTask( SaneDevice dev, FilmMover mover, Rectangle scanArea, Project prj ) {
+    public ScanTask( SaneDevice dev, FilmMover mover, Rectangle2D scanArea, Project prj ) {
         super( Application.getInstance() );
         this.dev = dev;
         this.scanArea = scanArea;
@@ -105,6 +114,7 @@ public class ScanTask extends Task<Void, Void> implements ScanAnalysisListener {
         initScanner();
         while ( true ) {
             PlanarImage img = scan();
+            saveImage(img, new File( "/tmp/testimg.tif" ) );
             img = TransposeDescriptor.create( img, TransposeDescriptor.ROTATE_90, null );
             if ( isCancelled() ) {
                 img.dispose();
@@ -145,10 +155,20 @@ public class ScanTask extends Task<Void, Void> implements ScanAnalysisListener {
         message( "initMessage" );
         dev.setOption( "mode", "Color" );
         dev.setOption( "depth", 16 );
-        dev.setOption( "tl-x", new FixedPointNumber( 30 << 16 ) );
-        dev.setOption( "tl-y", new FixedPointNumber( 48 << 16 ) );
-        dev.setOption( "br-x", new FixedPointNumber( 190 << 16 ) );
-        dev.setOption( "br-y", new FixedPointNumber( 55 << 16 ) );
+        FixedPointNumber top = FixedPointNumber.valueOf( scanArea.getMinY() );
+        FixedPointNumber left = FixedPointNumber.valueOf( scanArea.getMinX() );
+        FixedPointNumber bot = FixedPointNumber.valueOf( scanArea.getMaxY() );
+        FixedPointNumber right = FixedPointNumber.valueOf( scanArea.getMaxX() );
+        
+//        top = new FixedPointNumber( 48 << 16 );
+//        left = new FixedPointNumber( 30 << 16 );
+//        bot = new FixedPointNumber( 55 << 16 );
+//        right = new FixedPointNumber( 190 << 16 );
+
+        dev.setOption( "tl-x", left );
+        dev.setOption( "tl-y", top );
+        dev.setOption( "br-x", right );
+        dev.setOption( "br-y", bot );
         dev.setOption( "resolution", 4800 );
         dev.setOption( "source", "Transparency Unit" );
 
@@ -226,7 +246,48 @@ public class ScanTask extends Task<Void, Void> implements ScanAnalysisListener {
         return image;
         
     }
+    private void saveImage( RenderedImage img, File file ) {
+        // Find a writer for that file extensions
+        // Try to determine the file type based on extension
+        String ftype = "jpg";
+        String imageFname = file.getName();
+        int extIndex = imageFname.lastIndexOf( "." ) + 1;
+        if ( extIndex > 0 ) {
+            ftype = imageFname.substring( extIndex );
+        }
 
+        ImageWriter writer = null;
+        Iterator iter = ImageIO.getImageWritersBySuffix( ftype );
+        writer = (ImageWriter) iter.next();
+
+        if ( writer != null ) {
+            ImageOutputStream ios = null;
+            try {
+                // Prepare output file
+                ios = ImageIO.createImageOutputStream( file );
+                writer.setOutput( ios );
+                // Set some parameters
+                ImageWriteParam param = writer.getDefaultWriteParam();
+                writer.write( null, new IIOImage( img, null, null ), param );
+
+                // Cleanup
+                ios.flush();
+
+            } catch ( IOException ex ) {
+                log.severe( "Error saving image " + file.getAbsolutePath() + ": " 
+                        + ex.getMessage() );
+            } finally {
+                if ( ios != null ) {
+                    try {
+                        ios.close();
+                    } catch ( IOException e ) {
+                        log.severe( "Error closing output stream: " + e.getMessage() );
+                    }
+                }
+                writer.dispose();
+            }
+        }
+    }
     /**
      Callback that is called by {@link ScanStrip} to inforrm about progress
      @param currentLine The last pixel line analyzed

@@ -25,8 +25,11 @@
           <Group type="102" alignment="0" attributes="0">
               <EmptySpace max="-2" attributes="0"/>
               <Component id="previewPane" min="-2" max="-2" attributes="0"/>
-              <EmptySpace pref="75" max="32767" attributes="0"/>
-              <Component id="startPreviewScanBtn" min="-2" max="-2" attributes="0"/>
+              <EmptySpace max="32767" attributes="0"/>
+              <Group type="103" groupAlignment="1" attributes="0">
+                  <Component id="startPreviewScanBtn" min="-2" max="-2" attributes="0"/>
+                  <Component id="okBtn" alignment="1" min="-2" max="-2" attributes="0"/>
+              </Group>
               <EmptySpace max="-2" attributes="0"/>
           </Group>
       </Group>
@@ -36,7 +39,11 @@
           <Group type="102" alignment="0" attributes="0">
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="0" attributes="0">
-                  <Component id="startPreviewScanBtn" alignment="0" min="-2" max="-2" attributes="0"/>
+                  <Group type="102" alignment="0" attributes="0">
+                      <Component id="startPreviewScanBtn" min="-2" max="-2" attributes="0"/>
+                      <EmptySpace max="-2" attributes="0"/>
+                      <Component id="okBtn" min="-2" max="-2" attributes="0"/>
+                  </Group>
                   <Component id="previewPane" alignment="0" max="32767" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
@@ -77,6 +84,14 @@
           <action class="org.freecine.swingui.ScanPreviewDlg" id="scanPreviewImage" methodName="scanPreviewImage"/>
         </Property>
         <Property name="name" type="java.lang.String" value="startPreviewScanBtn" noResource="true"/>
+      </Properties>
+    </Component>
+    <Component class="javax.swing.JButton" name="okBtn">
+      <Properties>
+        <Property name="action" type="javax.swing.Action" editor="org.netbeans.modules.swingapp.ActionEditor">
+          <action class="org.freecine.swingui.ScanPreviewDlg" id="ok" methodName="ok"/>
+        </Property>
+        <Property name="name" type="java.lang.String" value="okBtn" noResource="true"/>
       </Properties>
     </Component>
   </SubComponents>

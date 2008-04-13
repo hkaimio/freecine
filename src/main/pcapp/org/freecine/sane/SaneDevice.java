@@ -100,9 +100,14 @@ public class SaneDevice {
             SaneOptionDescriptor desc = optionDesc[id];
             if ( desc.getType() == OptionType.SANE_TYPE_STRING ) {
                 if ( desc.size >= value.length() ) {
-                    int status = sane.sane_control_option(deviceHandle, id, 1, value, null );
+                    IntByReference info = new IntByReference();
+                    int status = sane.sane_control_option(deviceHandle, id, 1, value, info );
                     if ( status != 0 ) {
                         throw new SaneException( "Error setting option " + option + " to " + value );
+                    }
+                    // Check if options need to be reloaded
+                    if ( ( info.getValue() & 2 ) != 0 ) {
+                        initOptions();
                     }
                 } else {
                     throw new SaneException( "Length of option " + option + " cannot exceed " + desc.size );
@@ -125,9 +130,14 @@ public class SaneDevice {
             SaneOptionDescriptor desc = optionDesc[id];
             if ( desc.getType() == OptionType.SANE_TYPE_INT ) {
                 if ( desc.size == value.length * 4 ) {
-                    int status = sane.sane_control_option(deviceHandle, id, 1, value, null );
+                    IntByReference info = new IntByReference();
+                    int status = sane.sane_control_option(deviceHandle, id, 1, value, info );
                     if ( status != 0 ) {
                         throw new SaneException( "Error setting option " + option );
+                    }
+                    // Check if options need to be reloaded
+                    if ( ( info.getValue() & 2 ) != 0 ) {
+                        initOptions();
                     }
                 } else {
                     throw new SaneException( "Length of option " + option + " must be " + desc.size/4 );
@@ -146,10 +156,11 @@ public class SaneDevice {
         setOption( option, a );
     }
     
-    public void setOption( String option, FixedPointNumber[] value ) throws SaneException {
+    public FixedPointNumber[] setOption( String option, FixedPointNumber[] value ) throws SaneException {
         if ( optionIds == null ) {
             initOptions();
         }
+        FixedPointNumber[] newValue = value;
         int id = -1;
         if ( optionIds.containsKey(option ) ) {
             id = optionIds.get( option );
@@ -160,9 +171,21 @@ public class SaneDevice {
                     v[n] = value[n].getVal();
                 }
                 if ( desc.size == value.length * 4 ) {
-                    int status = sane.sane_control_option(deviceHandle, id, 1, v, null );
+                    IntByReference info = new IntByReference();
+                    int status = sane.sane_control_option(deviceHandle, id, 1, v, info );
                     if ( status != 0 ) {
                         throw new SaneException( "Error setting option " + option );
+                    }
+                    // Check if options need to be reloaded
+                    if ( ( info.getValue() & 2 ) != 0 ) {
+                        initOptions();
+                    }
+                    if ( ( info.getValue() & 1 ) != 0 ) {
+                        System.err.println( "Value modified :" );
+                        newValue = new FixedPointNumber[value.length];
+                        for ( int n = 0 ; n < v.length ; n++  ) {
+                            newValue[n] = new FixedPointNumber( v[n] );
+                        }
                     }
                 } else {
                     throw new SaneException( "Length of option " + option + " must be " + desc.size/4 );
@@ -173,13 +196,14 @@ public class SaneDevice {
         } else {
             throw new SaneException( "No option named " + option );
         }
-        
+        return newValue;
     }
     
-    public void setOption( String option, FixedPointNumber value ) throws SaneException {
+    public FixedPointNumber setOption( String option, FixedPointNumber value ) throws SaneException {
         FixedPointNumber[] a = {value};
-        setOption( option, a );
+        return setOption( option, a )[0];
     }    
+
     
     public void startScan() throws SaneException {
         int status = sane.sane_start(deviceHandle);

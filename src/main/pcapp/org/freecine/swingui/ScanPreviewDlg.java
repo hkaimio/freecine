@@ -25,6 +25,7 @@ Program grant you additional permission to convey the resulting work.
 
 package org.freecine.swingui;
 
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
@@ -55,7 +56,6 @@ public class ScanPreviewDlg extends javax.swing.JDialog {
         super( parent, modal );
         initComponents();
     }
-
     /**
      The scanner used
      */
@@ -78,6 +78,34 @@ public class ScanPreviewDlg extends javax.swing.JDialog {
         scanner = s;
         firePropertyChange( "scanner", oldScanner, s );
     }
+        
+    /**
+     Scan area
+     */
+    Rectangle2D scanArea;
+    
+    /**
+     Get the currently set scan area.
+     @return Rectangle describing currently selected scan area, in device 
+     coordinate units. The units are the same used by Sane back end for this type
+     of scanner (e.g. millimeters, not pixels)
+     */
+    public Rectangle2D getScanArea() {
+        return scanArea;
+    }
+    
+    /**
+     Set the scan area displayed in the dialog.
+     @param newArea New area, in device coordinate units (see getScanArea() for
+     more information.
+     */
+    public void setScanArea( Rectangle2D newArea ) {
+        Rectangle2D oldVal = scanArea;
+        scanArea = newArea;
+        ((PreviewPane)previewPane).setSelection( newArea );
+        firePropertyChange( "scanArea", oldVal, newArea );
+    }
+    
 
     /** This method is called from within the constructor to
      initialize the form.
@@ -89,6 +117,7 @@ public class ScanPreviewDlg extends javax.swing.JDialog {
 
         previewPane = new PreviewPane();
         startPreviewScanBtn = new javax.swing.JButton();
+        okBtn = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setName("Form"); // NOI18N
@@ -111,6 +140,9 @@ public class ScanPreviewDlg extends javax.swing.JDialog {
         startPreviewScanBtn.setAction(actionMap.get("scanPreviewImage")); // NOI18N
         startPreviewScanBtn.setName("startPreviewScanBtn"); // NOI18N
 
+        okBtn.setAction(actionMap.get("ok")); // NOI18N
+        okBtn.setName("okBtn"); // NOI18N
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -118,8 +150,10 @@ public class ScanPreviewDlg extends javax.swing.JDialog {
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(previewPane, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 75, Short.MAX_VALUE)
-                .addComponent(startPreviewScanBtn)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(startPreviewScanBtn)
+                    .addComponent(okBtn))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -127,7 +161,10 @@ public class ScanPreviewDlg extends javax.swing.JDialog {
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(startPreviewScanBtn)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(startPreviewScanBtn)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(okBtn))
                     .addComponent(previewPane, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
         );
@@ -167,6 +204,8 @@ public class ScanPreviewDlg extends javax.swing.JDialog {
             public void succeeded( TaskEvent<BufferedImage> ev ) {
                 try {
                     ((PreviewPane) previewPane).setPreviewImage( t.get() );
+                    
+                    ((PreviewPane) previewPane).setPreviewArea( t.getPreviewArea() );
                 } catch ( InterruptedException ex ) {
                     log.log( Level.SEVERE, null, ex );
                 } catch ( ExecutionException ex ) {
@@ -178,8 +217,20 @@ public class ScanPreviewDlg extends javax.swing.JDialog {
         return t;
     }
 
+    /**
+     The OK button was pressed
+     */
+    @Action
+    public void ok() {
+        Rectangle2D oldArea = scanArea;
+        scanArea = ((PreviewPane)previewPane).getSelection();
+        setVisible( false );
+        firePropertyChange( "scanArea", oldArea, scanArea );
+    }
+
     
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton okBtn;
     private javax.swing.JPanel previewPane;
     private javax.swing.JButton startPreviewScanBtn;
     // End of variables declaration//GEN-END:variables

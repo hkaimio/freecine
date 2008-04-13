@@ -26,6 +26,8 @@ Program grant you additional permission to convey the resulting work.
 package org.freecine.swingui;
 
 import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
@@ -56,12 +58,35 @@ public class ScanPreviewTask  extends Task<BufferedImage, BufferedImage> {
     private SaneDevice dev;
     private int TILE_WIDTH;
     
+    /**
+     Create a new preview task
+     @param app Application this task is associated with
+     @param dev ScanDevice to use
+     */
     public ScanPreviewTask( Application app, SaneDevice dev ) {
         super( app );
         this.dev = dev;
         log.setLevel(Level.FINE);
     }
+    
+    /**
+     Area of the preview scan, in device coordinates.
+     */
+    Rectangle2D previewArea = null;
+    
+    /**
+     Get the area of preview scan
+     @return Preview area, in device coordinates.
+     */
+    public Rectangle2D getPreviewArea() {
+        return previewArea;
+    }
 
+    /**
+     Do the actual scanning in background thread.
+     @return The scanned preview image.
+     @throws java.lang.Exception
+     */
     @Override
     protected BufferedImage doInBackground() throws Exception {
         initScanner();    
@@ -77,25 +102,25 @@ public class ScanPreviewTask  extends Task<BufferedImage, BufferedImage> {
         message( "initMessage" );
         dev.setOption( "mode", "Color" );
         dev.setOption( "depth", 16 );
-        dev.setOption( "resolution", 100 );
+        dev.setOption( "resolution", 200 );
         dev.setOption( "source", "Transparency Unit" );
         
         // Find out the maximum scanning area
-        int minX = -1;
-        int maxX = -1;
-        int minY = -1;
-        int maxY = -1;
+        FixedPointNumber minX = null;
+        FixedPointNumber maxX = null;
+        FixedPointNumber minY = null;
+        FixedPointNumber maxY = null;
         SaneOptionDescriptor xdesc = dev.getOptionDesc( "tl-x" );        
         switch ( xdesc.getConstraintType() ) {
             case SANE_CONSTRAINT_RANGE:
                 SaneRange r = (SaneRange) xdesc.getConstraints();
-                minX = r.min;
-                maxX = r.max;
+                minX = new FixedPointNumber( r.min );
+                maxX = new FixedPointNumber( r.max );
                 break;
             case SANE_CONSTRAINT_WORD_LIST:
                 int[] values = (int[]) xdesc.getConstraints();
-                minX = values[0];
-                maxX = values[values.length-1];
+                minX = new FixedPointNumber( values[0] );
+                maxX = new FixedPointNumber( values[values.length-1] );
                 break;
             default:
                 throw new SaneException( "Cannod determinen scan glass area" );
@@ -104,22 +129,33 @@ public class ScanPreviewTask  extends Task<BufferedImage, BufferedImage> {
         switch ( ydesc.getConstraintType() ) {
             case SANE_CONSTRAINT_RANGE:
                 SaneRange r = (SaneRange) ydesc.getConstraints();
-                minY = r.min;
-                maxY = r.max;
+                minY = new FixedPointNumber( r.min );
+                maxY = new FixedPointNumber( r.max );                
                 break;
             case SANE_CONSTRAINT_WORD_LIST:
                 int[] values = (int[]) ydesc.getConstraints();
-                minY = values[0];
-                maxY = values[values.length-1];
+                minY = new FixedPointNumber( values[0] );
+                maxY = new FixedPointNumber( values[values.length-1] );
                 break;
             default:
                 throw new SaneException( "Cannod determinen scan glass area" );
         }
-        dev.setOption( "tl-x", new FixedPointNumber( minX ) );
-        dev.setOption( "tl-y", new FixedPointNumber( minY ) );
-        dev.setOption( "br-x", new FixedPointNumber( maxX ) );
-        dev.setOption( "br-y", new FixedPointNumber( maxY ) );
-
+//        if ( maxX.toDouble() > 8 * 25.4 ) {
+//            maxX = FixedPointNumber.valueOf( 8 * 25.4 );
+//        }
+//        if ( maxY.toDouble() > 10 * 25.4 ) {
+//            maxY = FixedPointNumber.valueOf( 10 * 25.4 );
+//        }
+        minX = dev.setOption( "tl-x", minX );
+        minY = dev.setOption( "tl-y", minY );
+        maxX = dev.setOption( "br-x", maxX );
+        maxY = dev.setOption( "br-y", maxY );
+        previewArea = new Rectangle2D.Double( minX.toDouble(), minY.toDouble(), 
+                maxX.subtract(minX).toDouble(), maxY.subtract(minY).toDouble() );
+        
+        ScanParameter param = dev.getScanParameter();
+        System.out.println( "Scan parameters: " + param.getPixelsPerLine() + " x " + param.getLines() );
+        
         // Set gamma correction
         dev.setOption( "gamma-correction", "User defined" );
         int[] gammaTable = new int[256];
@@ -176,6 +212,7 @@ public class ScanPreviewTask  extends Task<BufferedImage, BufferedImage> {
             log.fine( "Read " + pos + " samples" );
         }
 
+        dev.close();
         return image;
         
     }

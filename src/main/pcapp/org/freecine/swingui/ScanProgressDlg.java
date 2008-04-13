@@ -35,6 +35,7 @@ import org.freecine.sane.SaneDevice;
 import org.freecine.sane.SaneDeviceDescriptor;
 import org.freecine.sane.SaneException;
 import java.awt.Graphics;
+import java.awt.geom.Rectangle2D;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
@@ -246,7 +247,7 @@ public class ScanProgressDlg extends javax.swing.JDialog {
         } catch ( SaneException e ) {
 
         }
-        scanTask = new ScanTask( dev, filmMover, null, prj );
+        scanTask = new ScanTask( dev, filmMover, scanArea, prj );
         scanTask.addPropertyChangeListener( new PropertyChangeListener() {
 
             public void propertyChange( PropertyChangeEvent evt ) {
@@ -349,7 +350,8 @@ public class ScanProgressDlg extends javax.swing.JDialog {
      property to indicate if film filmMover is ready
      */
     public boolean isFilmMoverReady() {
-        return filmMover != null;
+        // return filmMover != null;
+        return true;
     }
     
     public void setFilmMover( FilmMover mover ) {
@@ -371,17 +373,27 @@ public class ScanProgressDlg extends javax.swing.JDialog {
         setVisible( false );
     }
 
+    Rectangle2D scanArea = null;
+    
     /**
      Show the scan preview dialog
      */
-    @Action
+    @Action ( block=Task.BlockingScope.ACTION )
     public void adjustScanArea() {
         SaneDeviceDescriptor d = (SaneDeviceDescriptor) scannerCombo.getSelectedItem();
         try {
             SaneDevice dev = new SaneDevice( d.name );
             ScanPreviewDlg dlg = new ScanPreviewDlg( this, false );
             dlg.setScanner( dev );
+            dlg.setScanArea( new Rectangle2D.Double( 30.0, 48.0, 160.0, 7.0 ) );
+            dlg.addPropertyChangeListener("scanArea", new PropertyChangeListener() {
+
+                public void propertyChange( PropertyChangeEvent ev ) {
+                    scanArea = (Rectangle2D) ev.getNewValue();
+                }
+            });
             dlg.setVisible( true );
+            
         } catch ( SaneException e ) {
             return;
         }
